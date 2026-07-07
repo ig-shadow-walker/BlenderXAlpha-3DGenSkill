@@ -1,0 +1,26 @@
+{
+  "skill_name": "alpha3d-scenegen",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I've got Blender open with an empty scene. Can you build me a small fantasy village: a stone well right in the center, three different cottages arranged around it, and a wooden cart near the entrance path?",
+      "expected_output": "Claude decomposes the request into a distinct asset per object (well, 3 cottages, cart), reasons about which should be AI-generated (all of these are reasonable hero/organic candidates) vs. built as a simple bpy primitive, assigns a sensible quality tier and real-world size to each, works out a circular/entrance-relative placement layout from the description, then shows a cost table (per-asset + total) against the current credit balance and explicitly asks for confirmation before submitting anything. It does NOT call generate_3d, since the prompt never gave explicit go-ahead to spend credits.",
+      "files": [],
+      "expectations": []
+    },
+    {
+      "id": 2,
+      "prompt": "Generate a low-poly goblin character into my current Blender scene, and rig it so I can pose it later.",
+      "expected_output": "Claude plans a single generate asset (goblin, low_poly quality) and correctly identifies that it needs the rig_3d postprocess step because the user explicitly said they want to pose it. The cost estimate includes both the generation cost and the rigging cost (27 credits for a GLB-sourced rig) as separate line items, with a combined total shown against the current balance, and explicitly asks for confirmation before submitting. It does NOT call generate_3d or rig_3d, since no go-ahead was given.",
+      "files": [],
+      "expectations": []
+    },
+    {
+      "id": 3,
+      "prompt": "Can you generate a treasure chest model and drop it into my Blender scene?",
+      "expected_output": "Before proposing any plan, Claude verifies both required connections (a cheap Alpha3D MCP call and a trivial execute_blender_code call). In this test, the Blender bridge is not actually connected/running, so the execute_blender_code check fails. Claude stops immediately, tells the user plainly and specifically that the Blender connector isn't responding, and explains in plain language what to check (Blender open, bridge add-on's server started) rather than producing a generic error, a stack trace, or silently trying to proceed with a partial plan.",
+      "files": [],
+      "expectations": []
+    }
+  ]
+}
