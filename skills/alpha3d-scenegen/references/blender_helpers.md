@@ -1,6 +1,6 @@
 # Blender-side helpers
 
-Adapt the code below inside your `execute_blender_code` calls — don't
+Adapt the code below inside your `execute_blender_code` calls. Don't
 rewrite the byte-truncation math or the bounding-box normalization from
 scratch each time. Everything here uses only `bpy` and the Python standard
 library (`urllib`, `struct`, `tempfile`, `os`), so it needs nothing beyond
@@ -13,8 +13,8 @@ size doesn't exactly match the 12-byte header's declared total length
 (bytes 8-12, a little-endian uint32). Some servers pad a GLB with trailing
 bytes that web viewers (three.js and friends) happily ignore but Blender's
 importer refuses outright, failing with `Bad GLB: file size doesn't match`.
-This is a real failure mode, already hit and fixed once — always sanitize a
-downloaded GLB before importing it, never skip this step to save a line of
+This is a real failure mode, already hit and fixed once. Always sanitize a
+downloaded GLB before importing it; never skip this step to save a line of
 code.
 
 ```python
@@ -23,7 +23,7 @@ import struct
 def sanitize_glb_bytes(data: bytes) -> bytes:
     """Truncate a GLB to its header-declared length if it has trailing
     bytes Blender's strict importer would otherwise reject. Never pads,
-    never touches non-GLB data — only ever shrinks."""
+    never touches non-GLB data; only ever shrinks."""
     if len(data) < 12 or data[0:4] != b"glTF":
         return data
     declared_length = struct.unpack_from("<I", data, 8)[0]
@@ -35,7 +35,7 @@ def sanitize_glb_bytes(data: bytes) -> bytes:
 ## Download + write to a temp file
 
 Blender's `import_scene.gltf` operator needs a filepath, not bytes in
-memory, so download and stage to disk first. `urllib` is stdlib — no pip
+memory, so download and stage to disk first. `urllib` is stdlib; no pip
 install needed inside Blender's Python.
 
 ```python
@@ -53,7 +53,7 @@ def download_and_stage_glb(url: str, timeout: int = 180) -> str:
 
 ## Import, normalize scale, drop to ground, group under a named Empty
 
-Generated meshes come back at an arbitrary internal scale — always
+Generated meshes come back at an arbitrary internal scale. Always
 normalize to the `target_size_m` you decided during planning, not the
 mesh's raw imported size. Grouping under an Empty (rather than leaving
 loose objects, or worse, the glTF importer's own throwaway "world"/scene
@@ -116,7 +116,7 @@ def import_and_place(glb_path, asset_name, target_size_m, location_xy, base_z=0.
 When a completed job returns more than one download link, import every
 part under the *same* parent Empty instead of calling `import_and_place`
 independently for each (that would create a separate Empty per part, which
-defeats the point of segmentation — the parts are meant to be treated as
+defeats the point of segmentation; the parts are meant to be treated as
 one object made of pieces):
 
 ```python
@@ -159,8 +159,8 @@ def import_parts_and_place(glb_urls, asset_name, target_size_m, location_xy, bas
 
 ## Preflight check
 
-Run this as your very first `execute_blender_code` call in any session —
-it's free, fast, and tells you immediately whether the bridge is actually
+Run this as your very first `execute_blender_code` call in any session.
+It's free, fast, and tells you immediately whether the bridge is actually
 alive rather than failing confusingly deeper into the plan:
 
 ```python
@@ -171,7 +171,7 @@ result = {"blender_version": bpy.app.version_string, "scene_objects": len(bpy.da
 ## Viewport screenshot for the final report
 
 ```python
-# Use your screenshot/render tool with a size cap — an uncapped full-resolution
+# Use your screenshot/render tool with a size cap. An uncapped full-resolution
 # screenshot can overflow the MCP response and error with something like
 # "Unterminated string" rather than a clear size-limit message.
 ```

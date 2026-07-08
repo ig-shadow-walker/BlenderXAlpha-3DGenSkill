@@ -1,0 +1,11 @@
+{
+  "name": "alpha3d-scenegen",
+  "description": "Generate 3D models with Alpha3D and build them into your open Blender scene, scaled, grounded, and placed from a plain-language description.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Alpha3D"
+  },
+  "homepage": "https://alpha3d.io",
+  "repository": "https://github.com/ig-shadow-walker/3DGenSkill",
+  "license": "MIT"
+}

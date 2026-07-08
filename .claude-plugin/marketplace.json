@@ -1,0 +1,28 @@
+{
+  "name": "alpha3d",
+  "owner": {
+    "name": "Alpha3D"
+  },
+  "description": "Alpha3D skills for Claude Code.",
+  "plugins": [
+    {
+      "name": "alpha3d-scenegen",
+      "source": "./",
+      "description": "Generate 3D models with Alpha3D and build them into your open Blender scene, scaled, grounded, and placed from a plain-language description.",
+      "version": "0.1.0",
+      "homepage": "https://alpha3d.io",
+      "repository": "https://github.com/ig-shadow-walker/3DGenSkill",
+      "license": "MIT",
+      "category": "3d",
+      "keywords": [
+        "blender",
+        "3d",
+        "ai-3d",
+        "text-to-3d",
+        "alpha3d",
+        "mcp",
+        "scene-generation"
+      ]
+    }
+  ]
+}

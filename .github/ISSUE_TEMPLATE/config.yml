@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Alpha3D account, credits, or API help
+    url: https://alpha3d.io
+    about: For questions about your Alpha3D account, credit balance, or the generation API itself (not the skill), start here.
+  - name: Claude Code skills and plugins docs
+    url: https://code.claude.com/docs/en/skills
+    about: How Agent Skills and plugins work in Claude Code.
