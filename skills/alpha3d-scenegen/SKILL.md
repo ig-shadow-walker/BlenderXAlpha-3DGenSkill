@@ -8,9 +8,11 @@ description: >
   Blender scene with new 3D assets; describes a level, room, environment, or
   list of props/characters they want created directly in their open .blend
   file; asks to "generate this into Blender", "add these models to my
-  scene", or "build me a village/room/set in Blender"; or wants AI-generated
-  meshes automatically downloaded, scaled, grounded, and positioned in
-  Blender without manually exporting and importing each one by hand. Trigger
+  scene", "drop my existing Alpha3D models into this scene", or "build me a
+  village/room/set in Blender"; or wants AI-generated meshes (or models
+  already in their Alpha3D library) automatically downloaded, scaled,
+  grounded, and positioned in Blender without manually exporting and
+  importing each one by hand. Trigger
   this even if the user doesn't say "Alpha3D" or "MCP" by name and just
   describes what they want their scene to contain. Requires BOTH the Alpha3D
   MCP connector (generate_3d, get_job, etc.) and a Blender code-execution MCP
@@ -76,16 +78,22 @@ Read the user's description and build a structured plan, one entry per
 distinct object they want in the scene. For each, decide:
 
 - **name**: a short, descriptive label.
-- **source**: `generate`, `primitive`, or `skip`. This decision matters for
-  cost: AI generation costs real credits, so reserve it for objects where
-  it actually earns its keep, like hero props, organic shapes, characters,
-  anything with visual complexity or a specific look the user described.
-  A flat table, a simple crate, a wall, a floor plane: build these with
-  ordinary `bpy` primitives instead; generating a cube costs the user 30+
-  credits for something `bpy.ops.mesh.primitive_cube_add()` does for free
-  with an identical result. Purely atmospheric elements (sky, fog, ambient
-  light) aren't meshes at all; mark them `skip` and mention them only in
-  your final report.
+- **source**: `generate`, `reuse`, `primitive`, or `skip`. This decision
+  drives cost, so make it deliberately:
+  - **`reuse`** (free): if the user refers to something they already made
+    ("my dragon from last week", "the crate I generated earlier", "use my
+    existing models"), find it with `search` or `list_library` and import
+    it via its `fetch` download link. This spends zero credits, so always
+    prefer it over regenerating an asset the user already owns.
+  - **`generate`** (spends credits): reserve AI generation for objects where
+    it earns its keep, like hero props, organic shapes, characters, anything
+    with visual complexity or a specific look the user described.
+  - **`primitive`** (free): a flat table, a simple crate, a wall, a floor
+    plane: build these with ordinary `bpy` primitives instead; generating a
+    cube costs 30+ credits for something `bpy.ops.mesh.primitive_cube_add()`
+    does for free with an identical result.
+  - **`skip`**: purely atmospheric elements (sky, fog, ambient light) aren't
+    meshes at all; note them in your final report and move on.
 - **prompt** (for `generate` items): a clear, specific text prompt, or an
   image URL if the user gave you a reference image.
 - **quality**: `standard` (fast/cheap, no PBR, fine for a rough
@@ -111,6 +119,18 @@ distinct object they want in the scene. For each, decide:
   so nothing ends up overlapping. Write down actual (x, y) coordinates now,
   you'll apply them in Step 5.
 
+Two other tools are worth reaching for while planning (both free), see
+`references/mcp_tools.md` for details:
+- If the user dropped a **local image** into the chat, or wants
+  **multi-view-to-3D** (several angles of one object), you can't submit that
+  through `generate_3d` directly. Use `open_generator` to hand them a web
+  link, let them generate there, then pick the result up with `get_job` or
+  `list_library` and import it like any other asset.
+- `generate_image` is a quick way to lock a look before spending 3D credits:
+  generate a concept image, and if the user likes it, feed its hosted URL
+  into `generate_3d` image mode. Useful when a text prompt alone keeps
+  missing what they want.
+
 ## Step 2: Show the plan, then STOP for explicit confirmation
 
 This step is not optional and there is no phrasing of the user's original
@@ -123,9 +143,14 @@ undo button fixes.
 
 Call `get_credit_balance`, then show the user a plan table: asset name,
 source, quality, credits, any postprocess + its credits, subtotal, followed
-by the grand total and the balance remaining after. Then wait for an
-explicit go-ahead in the conversation. Do not call `generate_3d` (or any
-other credit-spending tool) until you have it.
+by the grand total and the balance remaining after. Reuse, primitive, and
+skip rows are free; only `generate` and postprocess rows cost credits.
+
+If any credits will be spent, wait for an explicit go-ahead in the
+conversation before calling `generate_3d` (or any other credit-spending
+tool). If the whole plan happens to be free (all reuse/primitive/skip), you
+can proceed once you've shown it, but still show it first so the user can
+correct anything before you build.
 
 ## Step 3: Submit generation jobs, in parallel
 
@@ -148,6 +173,11 @@ means keep waiting; `completed` means record the download link(s);
 rest of the scene on it; a single failed asset should not sink the build.
 
 ## Step 5: Download, sanitize, import, normalize, and place (one `execute_blender_code` call per asset)
+
+Each asset now has a GLB download URL: for a `generate` asset it comes from
+its completed `get_job`; for a `reuse` asset it comes from `fetch(id)` (those
+skip Steps 3 and 4 entirely, since nothing was generated). The import is
+identical either way.
 
 Do the entire pipeline for one asset in a single call rather than several
 round trips: download the GLB bytes, truncate them if Blender's strict

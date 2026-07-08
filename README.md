@@ -34,6 +34,7 @@ Claude then breaks the scene into individual assets, shows you exactly what each
 ## What it does
 
 - **Turns a description into a plan.** It decides what genuinely needs AI generation (hero props, characters, organic shapes) versus what is cheaper as a plain Blender primitive (a flat floor, a simple crate), so you do not burn credits generating a cube.
+- **Reuses what you already own.** If you refer to a model already in your Alpha3D library ("add my dragon from last week"), it finds and imports that one instead of regenerating it, for zero credits.
 - **Never spends credits behind your back.** It always shows a per asset cost table and total against your current balance, then stops and waits for explicit confirmation before submitting anything.
 - **Generates and imports end to end.** Text to 3D, image to 3D, and multi view, plus optional refinement (auto rig, retopology, UV unwrap, re texture, part segmentation) driven straight from the scene description.
 - **Places assets like a scene, not a pile.** Bounding box scale normalization to a target size, drop to the ground plane, and layout reasoning (a circle "around the well", points "along the path", a spaced grid for a loose list), each asset grouped under its own named Empty.
