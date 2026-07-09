@@ -8,8 +8,13 @@ An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/o
 
 <!-- Badges: replace OWNER/REPO once topics + license are set on GitHub -->
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
-![Agent Skill](https://img.shields.io/badge/Claude-Agent%20Skill-6C4BF6.svg)
+![Agent Skill](https://img.shields.io/badge/Anthropic-Agent%20Skill-6C4BF6.svg)
 ![Blender](https://img.shields.io/badge/Blender-4.x%20%7C%205.x-orange.svg)
+
+**Works with**
+&nbsp;![Claude Code](https://img.shields.io/badge/Claude%20Code-6C4BF6)
+&nbsp;![Cursor](https://img.shields.io/badge/Cursor-111111)
+&nbsp;![Codex](https://img.shields.io/badge/Codex-10a37f)
 
 <br/>
 
@@ -30,6 +35,19 @@ You say:
 > *"I've got Blender open on an empty scene. Build me a small fantasy village: a stone well in the center, three different cottages around it, and a wooden cart by the entrance."*
 
 Your agent then breaks the scene into individual assets, shows you exactly what each one will cost in Alpha3D credits, waits for your go-ahead, generates every model in parallel, and imports each one into your live Blender file, scaled to a sensible real-world size, dropped to the floor, and positioned into the layout you described. No manual export, download, or import.
+
+## Contents
+
+- [What it does](#what-it-does)
+- [How it works](#how-it-works)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation) (Claude Code, Cursor, Codex)
+- [Usage](#usage)
+- [Cost](#cost)
+- [Repo layout](#repo-layout)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## What it does
 
