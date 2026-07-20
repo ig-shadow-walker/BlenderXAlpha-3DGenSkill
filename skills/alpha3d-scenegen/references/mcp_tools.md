@@ -26,7 +26,7 @@ the result.
 | `prompt` | string | Text mode. |
 | `image_url` | string (https URL) | Image mode. |
 | `multi_view_images` | array of `{view: "left"\|"right"\|"back", image_url}` | Multiview mode, max 3. |
-| `quality` | `"standard"` \| `"pbr"` \| `"low_poly"` | Default `pbr`. See cost table below. |
+| `quality` | `"standard"` \| `"pbr"` \| `"low_poly"` | Default `pbr`. Cost varies by tier; get current pricing from `list_generation_options`. |
 | `face_count` | integer, 3,000-1,500,000 | Target polygon count. |
 | `title` | string, max 100 chars | Name for the generated asset. |
 
@@ -106,26 +106,29 @@ first; it's here for when the user wants the cutout itself.
   remaining, bonus credits, purchased credits, and `total_usable`. Call
   this before showing a cost estimate and again after a run to confirm
   what actually got spent.
-- **`list_generation_options()`**: no arguments. Returns the *live*
-  authoritative cost table plus each tool's required arguments; prefer
-  calling this fresh over trusting the numbers below if they might have
-  changed.
+- **`list_generation_options()`**: no arguments. Returns the *live*,
+  authoritative per-operation cost plus each tool's required arguments. This
+  is the source of truth for pricing; always call it before quoting a cost.
 
-## Credit costs (verified via `list_generation_options`; reconfirm if in doubt)
+## Credit costs
 
-| Operation | Cost |
-|---|---|
-| `generate_3d` (any mode) | 30 credits (standard) / 42 (pbr) / 48 (low_poly) |
-| `retopologize` | 60 |
-| `uv_unwrap` | 12 |
-| `texture_3d` | 54 (FBX target) / 61 (GLB, auto-converts) |
-| `segment_3d` | 54 (FBX target) / 61 (GLB, auto-converts) |
-| `rig_3d` | 15 (FBX/OBJ) / 27 (GLB, auto-converts) |
-| `convert_format` | 12 |
-| `generate_image` / `remove_background` | free |
-| `open_generator` / `search` / `fetch` / `list_library` | free |
+**Do not hardcode prices.** Call `list_generation_options` for the live,
+authoritative per-operation cost right before you build an estimate. The
+same pricing as the Alpha3D platform applies (see the pricing page at
+`https://alpha3d.io/pricing`), and it can change, so the live tool is the
+only number you should quote to the user.
+
+Free, and never needs pricing:
+
+- `reuse` via `fetch` (importing a model the user already owns)
+- Blender primitives and duplicated copies (built locally, no job runs)
+- `generate_image`, `remove_background`
+- `open_generator`, `search`, `list_library`, `get_job`, `get_credit_balance`
+
+Spends credits: `generate_3d` and the refinement tools (`retopologize`,
+`uv_unwrap`, `texture_3d`, `segment_3d`, `rig_3d`, `convert_format`). Get
+each one's current cost from `list_generation_options`.
 
 **Credits are debited when a job is *submitted*, and auto-refunded if that
-job later fails.** Importing an existing library asset via `fetch` costs
-nothing. When reporting what a run actually cost, count only jobs that
-reached `completed`; a failed job never really cost the user anything.
+job later fails.** When reporting what a run actually cost, count only jobs
+that reached `completed`; a failed job never really cost the user anything.

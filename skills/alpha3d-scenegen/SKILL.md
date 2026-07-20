@@ -37,8 +37,8 @@ it should be, and where it goes.
 
 Three files carry the parts of this skill that are pure mechanism rather than
 judgment, so you don't have to re-derive them each time:
-- `references/mcp_tools.md`: verified tool contracts and the credit cost
-  table for every Alpha3D MCP tool this skill uses.
+- `references/mcp_tools.md`: verified tool contracts, and where live pricing
+  comes from, for every Alpha3D MCP tool this skill uses.
 - `references/blender_helpers.md`: proven Python (download, sanitize,
   import, normalize, place) to adapt inside your `execute_blender_code`
   calls. The sanitize step in particular fixes a real, previously-debugged
@@ -104,8 +104,8 @@ decide:
     with visual complexity or a specific look the user described.
   - **`primitive`** (free): a flat table, a simple crate, a wall, a floor
     plane: build these with ordinary `bpy` primitives instead; generating a
-    cube costs 30+ credits for something `bpy.ops.mesh.primitive_cube_add()`
-    does for free with an identical result.
+    cube costs a full generation's credits for something
+    `bpy.ops.mesh.primitive_cube_add()` does for free with an identical result.
   - **`skip`**: purely atmospheric elements (sky, fog, ambient light) aren't
     meshes at all; note them in your final report and move on.
 - **prompt** (for `generate` items): a clear, specific text prompt, or an
@@ -160,10 +160,13 @@ misunderstood prompt, an unnecessarily high quality tier, or a postprocess
 step the user didn't actually want is real spent money, not something an
 undo button fixes.
 
-Call `get_credit_balance`, then show the user a plan table: asset name,
-source, quality, credits, any postprocess + its credits, subtotal, followed
-by the grand total and the balance remaining after. Reuse, primitive, and
-skip rows are free; only `generate` and postprocess rows cost credits.
+Call `get_credit_balance` for the balance and `list_generation_options` for
+the live per-operation pricing (never hardcode credit amounts; the tool is
+the source of truth and pricing can change). Then show the user a plan
+table: asset name, source, quality, credits, any postprocess + its credits,
+subtotal, followed by the grand total and the balance remaining after.
+Reuse, primitive, and skip rows are free; only `generate` and postprocess
+rows cost credits.
 
 If any credits will be spent, wait for an explicit go-ahead in the
 conversation before calling `generate_3d` (or any other credit-spending

@@ -103,15 +103,14 @@ Your agent sequences both: it plans the scene, prices it, and after you confirm,
 
 Your agent first shows a plan and the cost, and stops:
 
-| Asset | Source | Quality | Credits |
-|---|---|---|---|
-| Stone well | generate | pbr | 42 |
-| Cottage (3 different) | generate x3 | pbr | 126 |
-| Wooden cart | generate | pbr | 42 |
-| Ground plane | primitive | n/a | 0 |
-| **Total** | | | **210** |
+| Asset | Source | Quality |
+|---|---|---|
+| Stone well | generate | pbr |
+| Cottage (3 different) | generate x3 | pbr |
+| Wooden cart | generate | pbr |
+| Ground plane | primitive | free |
 
-> Building this spends **210** credits (balance after: 17,988). The ground is a free Blender plane. Confirm to build, or tell me what to change.
+> This generates 5 models (the well, three different cottages, the cart); the ground plane is a free Blender primitive. Here is the total credit cost and your balance after it. Confirm to build, or tell me what to change.
 
 On your go-ahead it generates them one at a time, checking your balance before each so it stops cleanly if you run low. As each finishes it imports the model, scales it (a well is about 1.5 m, a cottage about 5 m), drops it to the floor, and places it: the well at the center, the three cottages spaced around it in a ring, the cart out by the entrance. It ends with a viewport screenshot and the exact credits actually spent.
 
@@ -271,19 +270,9 @@ Your agent will plan it, price it, ask you to confirm, then build it, arranging 
 
 ## Cost
 
-Generation and refinement spend Alpha3D credits. Reuse, primitives, duplicated copies, and concept images are free.
+Generation and refinement spend Alpha3D credits. Reuse from your library, Blender primitives, duplicated copies, and concept images are free.
 
-| Operation | Credits |
-|---|---|
-| Generate (text / image / multi-view) | 30 standard, 42 PBR, 48 low-poly |
-| Rig | 15 to 27 |
-| Retopology | 60 |
-| UV unwrap | 12 |
-| Re-texture or segment | 54 to 61 |
-| Convert format | 12 |
-| Reuse from library, primitives, duplicated copies, concept images | free |
-
-Full, authoritative table in [`references/mcp_tools.md`](./skills/alpha3d-scenegen/references/mcp_tools.md).
+The same credit pricing as the Alpha3D platform applies. For current rates, see the [Alpha3D pricing page](https://alpha3d.io/pricing). You never have to look it up yourself, though: your agent reads live pricing from the connector and shows you the exact per-asset cost and total in the plan before it builds anything.
 
 > [!IMPORTANT]
 > Credits are debited when a job is submitted and **auto-refunded if it fails**. This skill always shows the full cost and waits for your confirmation before submitting anything, so nothing is spent without your go-ahead.

@@ -11,7 +11,7 @@
     {
       "id": 2,
       "prompt": "Generate a low-poly goblin character into my current Blender scene, and rig it so I can pose it later.",
-      "expected_output": "Claude plans a single generate asset (goblin, low_poly quality) and correctly identifies that it needs the rig_3d postprocess step because the user explicitly said they want to pose it. The cost estimate includes both the generation cost and the rigging cost (27 credits for a GLB-sourced rig) as separate line items, with a combined total shown against the current balance, and explicitly asks for confirmation before submitting. It does NOT call generate_3d or rig_3d, since no go-ahead was given.",
+      "expected_output": "Claude plans a single generate asset (goblin, low_poly quality) and correctly identifies that it needs the rig_3d postprocess step because the user explicitly said they want to pose it. The cost estimate includes both the generation cost and the rigging cost as separate line items (amounts taken from live pricing via list_generation_options, not hardcoded), with a combined total shown against the current balance, and explicitly asks for confirmation before submitting. It does NOT call generate_3d or rig_3d, since no go-ahead was given.",
       "files": [],
       "expectations": []
     },
@@ -25,7 +25,7 @@
     {
       "id": 4,
       "prompt": "In my open Blender scene, generate a wooden barrel and scatter five of them in a loose cluster near the origin.",
-      "expected_output": "Claude recognizes the five barrels are identical, so it plans ONE generate entry with a count of 5 (not five separate generations) and works out five non-overlapping coordinates. Crucially, the cost table shows the price of a SINGLE generation (30-48 credits depending on quality), NOT five times that, and it explains that the extra copies are duplicated inside Blender for free. It stops at the confirmation gate without calling generate_3d.",
+      "expected_output": "Claude recognizes the five barrels are identical, so it plans ONE generate entry with a count of 5 (not five separate generations) and works out five non-overlapping coordinates. Crucially, the cost table shows the price of a SINGLE generation, NOT five times that, and it explains that the extra copies are duplicated inside Blender for free. It stops at the confirmation gate without calling generate_3d.",
       "files": [],
       "expectations": []
     },
