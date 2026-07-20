@@ -74,10 +74,24 @@ Don't proceed partway and produce a confusing failure later.
 
 ## Step 1: Turn the description into an asset plan
 
-Read the user's description and build a structured plan, one entry per
-distinct object they want in the scene. For each, decide:
+First, look at what you are building into. The scene is often not empty. If
+the request references existing content ("on the desk", "next to the
+character", "fill the empty corner") or the scene may already have objects,
+inspect it with a free `execute_blender_code` call (`summarize_scene` in
+`references/blender_helpers.md`). Anchor new assets to the real coordinates
+of what is already there, and keep them clear of existing geometry. Treat
+the scene as an empty floor only if it actually is one.
+
+Then build a structured plan, one entry per distinct object. For each,
+decide:
 
 - **name**: a short, descriptive label.
+- **count**: how many of this exact object. If the user wants several
+  identical copies ("three crates", "a row of six pillars"), plan ONE entry
+  with count > 1, not N separate entries. You generate or fetch the asset
+  once and duplicate it in Blender (Step 5), so nine identical crates still
+  cost a single generation. Only make separate entries when the copies
+  should genuinely differ ("three different cottages" is three entries).
 - **source**: `generate`, `reuse`, `primitive`, or `skip`. This decision
   drives cost, so make it deliberately:
   - **`reuse`** (free): if the user refers to something they already made
@@ -113,11 +127,16 @@ distinct object they want in the scene. For each, decide:
   calls for it (e.g. "rig it so I can pose it" clearly wants `rig_3d`;
   "make a village" alone does not imply any background prop needs rigging).
 - **placement**: reason out where this belongs relative to everything else
-  from the description itself. "Around a well" implies a circle; "along a
-  path" implies points spaced along a line; an unordered list of props
-  implies a simple grid with spacing derived from each item's `target_size_m`
-  so nothing ends up overlapping. Write down actual (x, y) coordinates now,
-  you'll apply them in Step 5.
+  from the description itself (and relative to any existing objects you found
+  above). "Around a well" implies a circle; "along a path" implies points
+  spaced along a line; an unordered list of props implies a simple grid with
+  spacing derived from each item's `target_size_m` so nothing ends up
+  overlapping. For a count > 1, write one coordinate per copy. Write down
+  actual (x, y) coordinates now, you'll apply them in Step 5. If the
+  description implies a facing (a cart "facing the well", chairs "around a
+  table"), note a Z rotation too; generated meshes have no guaranteed front,
+  so treat facing as best-effort and call it out in your report so the user
+  can spin any that end up backwards.
 
 Two other tools are worth reaching for while planning (both free), see
 `references/mcp_tools.md` for details:
@@ -161,6 +180,10 @@ submit all of them back-to-back rather than waiting for one to finish
 before starting the next. Track each returned `job_id` against its plan
 entry; you'll need both together for every step from here on.
 
+Always pass a clear, unique `title` (the asset's name from your plan). It
+labels the asset in the user's library, which is what lets you recover it
+later without paying again if the run gets interrupted (see the note below).
+
 ## Step 4: Poll until every job finishes
 
 Round-robin `get_job(job_id)` across everything still pending. The tool's
@@ -171,6 +194,11 @@ responsive, and don't give up early. For each job: `queued`/`processing`
 means keep waiting; `completed` means record the download link(s);
 `error` means record the failure reason and move on without blocking the
 rest of the scene on it; a single failed asset should not sink the build.
+
+**Import each asset the moment its job completes** (its Step 5 pass), while
+the others keep generating. Don't wait for the whole batch to finish first:
+importing as you go means the user sees the scene fill in, and one slow or
+stuck job never blocks the assets that are already ready.
 
 ## Step 5: Download, sanitize, import, normalize, and place (one `execute_blender_code` call per asset)
 
@@ -190,6 +218,12 @@ code for all of this is in `references/blender_helpers.md`. Read it and
 adapt the parameters per asset rather than writing it from scratch each
 time; the byte-truncation math in particular is easy to get subtly wrong if
 you rederive it.
+
+For an asset with **count > 1**, use `build_asset` (in
+`references/blender_helpers.md`): it downloads the GLB once and places a
+uniquely-named copy at each coordinate you planned, so the extra copies cost
+no credits, and it cleans up the temp file for you. For a very large count,
+`duplicate_linked` makes mesh-sharing copies that keep the scene light.
 
 If a completed job's response includes more than one download link
 (`segment_3d` splits a mesh into labeled parts, each its own GLB), import
@@ -214,6 +248,16 @@ real reason, not a vague "something went wrong"), and the total credits
 *actually* spent. Count only jobs that reached `completed`, since a failed
 job auto-refunds and was never really spent. Ask if they want anything
 repositioned, resized, or regenerated before considering the scene done.
+
+## If a run gets interrupted after generating
+
+A job that reached `completed` is already paid for and stored in the user's
+Alpha3D library. If the run breaks after that (the Blender bridge drops, the
+conversation resets) before you placed the asset, do NOT regenerate it, that
+charges the user a second time for a model they already own. Recover it
+instead: `search` or `list_library` by the `title` you set in Step 3, then
+`fetch` its download link and import (Step 5). This is exactly the `reuse`
+path from Step 1, and it is why every generation gets a clear, unique title.
 
 ## If something goes wrong mid-run
 

@@ -111,6 +111,62 @@ def import_and_place(glb_path, asset_name, target_size_m, location_xy, base_z=0.
     }
 ```
 
+## Place one asset, or N identical copies, from one download
+
+This is the workhorse for Step 5. It downloads the GLB **once** and imports a
+copy at each `(x, y)` you pass, so "three crates" or "a row of pillars" costs
+a single generation, not one per copy. It keeps names unique (`crate`,
+`crate_2`, `crate_3`, so Blender never silently appends `.001`) and always
+deletes the temp file, even if an import raises.
+
+```python
+def build_asset(url, base_name, target_size_m, placements):
+    """Download url once, then import+place a copy at each (x, y) in
+    placements (a list of at least one tuple). Extra copies re-use the
+    already-downloaded file, so they cost zero credits. Returns one result
+    dict per placed copy."""
+    path = download_and_stage_glb(url)
+    results = []
+    try:
+        for i, (x, y) in enumerate(placements, start=1):
+            name = base_name if len(placements) == 1 else f"{base_name}_{i}"
+            results.append(import_and_place(path, name, target_size_m, (x, y)))
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+    return results
+```
+
+Re-importing gives each copy its own mesh data, which is fine for a handful.
+For a large count (say 50 pillars) it is lighter to import once and make
+mesh-linked copies that share the mesh, so only the transforms differ:
+
+```python
+def duplicate_linked(master_result, placements):
+    """Given one import_and_place result, add mesh-linked copies at each
+    (x, y). Copies share mesh data (light on memory) and keep the master's
+    scale, rotation, and ground height. Numbering starts at _2."""
+    master = bpy.data.objects[master_result["parent"]]
+    children = list(master.children)
+    made = []
+    for i, (x, y) in enumerate(placements, start=2):
+        dup = bpy.data.objects.new(f"{master.name}_{i}", None)
+        bpy.context.collection.objects.link(dup)
+        dup.scale = master.scale
+        dup.rotation_euler = master.rotation_euler
+        dup.location = (x, y, master.location.z)
+        for child in children:
+            c = child.copy()  # shares child.data (the mesh) -> linked copy
+            bpy.context.collection.objects.link(c)
+            c.parent = dup
+            c.matrix_parent_inverse = child.matrix_parent_inverse.copy()
+            c.matrix_basis = child.matrix_basis.copy()
+        made.append(dup.name)
+    return made
+```
+
 ## Multi-part assets (e.g. a completed `segment_3d` job)
 
 When a completed job returns more than one download link, import every
@@ -166,6 +222,39 @@ alive rather than failing confusingly deeper into the plan:
 ```python
 import bpy
 result = {"blender_version": bpy.app.version_string, "scene_objects": len(bpy.data.objects)}
+```
+
+## Read the existing scene before placing
+
+The scene is often NOT empty. When the request references existing content
+("on the desk", "next to the character", "fill the rest of the room"), you
+need the real coordinates of what's already there, not an assumed empty
+floor. This returns every existing object with its world-space bounds plus
+the 3D cursor, so you can anchor new assets to real geometry and avoid
+dropping them inside what's already present.
+
+```python
+import bpy, mathutils
+
+def summarize_scene():
+    """Existing objects with world-space bounds (meshes) or location
+    (empties), plus the 3D cursor. Skips cameras and lights."""
+    items = []
+    for o in bpy.data.objects:
+        if o.type in {"CAMERA", "LIGHT"}:
+            continue
+        if o.type == "EMPTY" or not len(o.bound_box):
+            items.append({"name": o.name, "type": o.type,
+                          "location": list(o.matrix_world.translation)})
+            continue
+        corners = [o.matrix_world @ mathutils.Vector(c) for c in o.bound_box]
+        xs = [v.x for v in corners]; ys = [v.y for v in corners]; zs = [v.z for v in corners]
+        items.append({"name": o.name, "type": o.type,
+                      "min": [min(xs), min(ys), min(zs)],
+                      "max": [max(xs), max(ys), max(zs)]})
+    return {"objects": items, "cursor": list(bpy.context.scene.cursor.location)}
+
+result = summarize_scene()
 ```
 
 ## Viewport screenshot for the final report

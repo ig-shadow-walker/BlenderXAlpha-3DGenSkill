@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "I've got Blender open with an empty scene. Can you build me a small fantasy village: a stone well right in the center, three different cottages arranged around it, and a wooden cart near the entrance path?",
-      "expected_output": "Claude decomposes the request into a distinct asset per object (well, 3 cottages, cart), reasons about which should be AI-generated (all of these are reasonable hero/organic candidates) vs. built as a simple bpy primitive, assigns a sensible quality tier and real-world size to each, works out a circular/entrance-relative placement layout from the description, then shows a cost table (per-asset + total) against the current credit balance and explicitly asks for confirmation before submitting anything. It does NOT call generate_3d, since the prompt never gave explicit go-ahead to spend credits.",
+      "expected_output": "Claude decomposes the request into a distinct asset per object (well, 3 cottages, cart), reasons about which should be AI-generated (all of these are reasonable hero/organic candidates) vs. built as a simple bpy primitive, assigns a sensible quality tier and real-world size to each, works out a circular/entrance-relative placement layout from the description, then shows a cost table (per-asset + total) against the current credit balance and explicitly asks for confirmation before submitting anything. It does NOT call generate_3d, since the prompt never gave explicit go-ahead to spend credits. The three cottages are 'different', so they are three separate generate entries, not a count of 3.",
       "files": [],
       "expectations": []
     },
@@ -19,6 +19,20 @@
       "id": 3,
       "prompt": "Can you generate a treasure chest model and drop it into my Blender scene?",
       "expected_output": "Before proposing any plan, Claude verifies both required connections (a cheap Alpha3D MCP call and a trivial execute_blender_code call). In this test, the Blender bridge is not actually connected/running, so the execute_blender_code check fails. Claude stops immediately, tells the user plainly and specifically that the Blender connector isn't responding, and explains in plain language what to check (Blender open, bridge add-on's server started) rather than producing a generic error, a stack trace, or silently trying to proceed with a partial plan.",
+      "files": [],
+      "expectations": []
+    },
+    {
+      "id": 4,
+      "prompt": "In my open Blender scene, generate a wooden barrel and scatter five of them in a loose cluster near the origin.",
+      "expected_output": "Claude recognizes the five barrels are identical, so it plans ONE generate entry with a count of 5 (not five separate generations) and works out five non-overlapping coordinates. Crucially, the cost table shows the price of a SINGLE generation (30-48 credits depending on quality), NOT five times that, and it explains that the extra copies are duplicated inside Blender for free. It stops at the confirmation gate without calling generate_3d.",
+      "files": [],
+      "expectations": []
+    },
+    {
+      "id": 5,
+      "prompt": "There's already a desk in my Blender scene. Add a desk lamp sitting on top of it, and a small rug on the floor under it.",
+      "expected_output": "Rather than assuming an empty scene, Claude inspects the current Blender scene (summarize_scene) to get the existing desk's world-space bounds, then plans the lamp's position on top of the desk (resting on the desk's top surface, not the floor) and the rug on the floor beneath it, anchoring both to the desk's real coordinates. It shows the plan and cost and stops at the confirmation gate. (A full run needs a desk actually present; the behavior under test is that Claude reads the existing scene and places relative to it instead of dropping everything at the origin.)",
       "files": [],
       "expectations": []
     }

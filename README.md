@@ -2,7 +2,7 @@
 
 # Alpha3D Scene Generator for Blender
 
-**Describe a scene in plain English. Watch your AI agent generate the 3D models and build it in your open Blender file.**
+**Describe a scene in plain English. Your AI agent generates the 3D models with Alpha3D and builds it in your open Blender file, scaled, grounded, and placed.**
 
 An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) for [Claude Code](https://claude.com/claude-code), also usable in Cursor and OpenAI Codex, that connects [Alpha3D](https://alpha3d.io) AI 3D generation to a running Blender session.
 
@@ -34,11 +34,12 @@ You say:
 
 > *"I've got Blender open on an empty scene. Build me a small fantasy village: a stone well in the center, three different cottages around it, and a wooden cart by the entrance."*
 
-Your agent then breaks the scene into individual assets, shows you exactly what each one will cost in Alpha3D credits, waits for your go-ahead, generates every model in parallel, and imports each one into your live Blender file, scaled to a sensible real-world size, dropped to the floor, and positioned into the layout you described. No manual export, download, or import.
+Your agent breaks that into individual assets, shows you exactly what each one costs in Alpha3D credits, waits for your go-ahead, generates every model in parallel, and imports each into your live Blender file, scaled to a sensible real-world size, dropped to the floor, and arranged into the layout you described. No manual export, download, or import.
 
 ## Contents
 
-- [What it does](#what-it-does)
+- [What it can build](#what-it-can-build)
+- [Capabilities](#capabilities)
 - [How it works](#how-it-works)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation) (Claude Code, Cursor, Codex)
@@ -49,14 +50,35 @@ Your agent then breaks the scene into individual assets, shows you exactly what 
 - [Contributing](#contributing)
 - [License](#license)
 
-## What it does
+## What it can build
 
-- **Turns a description into a plan.** It decides what genuinely needs AI generation (hero props, characters, organic shapes) versus what is cheaper as a plain Blender primitive (a flat floor, a simple crate), so you do not burn credits generating a cube.
-- **Reuses what you already own.** If you refer to a model already in your Alpha3D library ("add my dragon from last week"), it finds and imports that one instead of regenerating it, for zero credits.
-- **Never spends credits behind your back.** It always shows a per asset cost table and total against your current balance, then stops and waits for explicit confirmation before submitting anything.
-- **Generates and imports end to end.** Text to 3D, image to 3D, and multi view, plus optional refinement (auto rig, retopology, UV unwrap, re texture, part segmentation) driven straight from the scene description.
-- **Places assets like a scene, not a pile.** Bounding box scale normalization to a target size, drop to the ground plane, and layout reasoning (a circle "around the well", points "along the path", a spaced grid for a loose list), each asset grouped under its own named Empty.
-- **Fails loudly and helpfully.** If the Blender bridge is not connected or a model comes back malformed, it tells you what is wrong and how to fix it instead of producing a cryptic error.
+Point it at your open Blender file and describe what you want in it:
+
+- **A game level or environment:** set pieces, terrain dressing, scattered props.
+- **A product or interior scene:** furniture, fixtures, and decor arranged in a room.
+- **A character or creature:** generated, and optionally rigged so you can pose it.
+- **A tabletop set or diorama:** a themed collection of small props laid out together.
+- **Props into a scene you already have:** "add a lamp on my desk", dropped onto the real desk.
+
+You stay in the loop: it always plans and prices the work first, and never spends a credit without your say-so.
+
+## Capabilities
+
+| Capability | What you get |
+|---|---|
+| **Text, image, or multi-view to 3D** | Generate a model from a prompt, a reference image, or several angles of one object. |
+| **Reuse your library, for free** | Refer to a model you already made ("my dragon from last week") and it imports that one instead of paying to regenerate it. |
+| **Identical copies for one price** | "Five barrels" generates once and duplicates the rest inside Blender, so the extra copies cost zero credits. |
+| **Smart source triage** | Hero props and organic shapes get AI-generated; a flat floor or plain cube is built as a free Blender primitive; atmosphere like sky or fog is skipped. You never pay to generate a cube. |
+| **Scene-aware placement** | Reads what is already in your file, so "on my desk" lands on the actual desk. Then it scales each asset to a real-world size, drops it to the floor, and groups it under a named Empty. |
+| **Layout reasoning** | "Around the well" becomes a circle, "along the path" a line, a loose list a spaced grid, with facing applied where the description implies it. |
+| **Refinement passes** | Optional auto-rig, retopology, UV unwrap, re-texture, or part segmentation, triggered from your words ("rig it so I can pose it"). |
+| **Concept image to 3D, for free** | Generate a concept image with FLUX first; once you like it, turn that exact image into a model. |
+| **Cost-safe by design** | Shows a per-asset cost table and waits for confirmation; failed jobs auto-refund; an interrupted run recovers already-paid assets from your library instead of charging twice. |
+| **Fails loudly, not silently** | If Blender is not connected or a model comes back malformed, it tells you what is wrong and how to fix it, rather than producing a cryptic error. |
+
+> [!TIP]
+> The cheapest asset is the one you do not generate. This skill leans on reuse, primitives, and duplication precisely so a scene costs the minimum number of real generations.
 
 ## How it works
 
@@ -72,17 +94,39 @@ flowchart LR
 ```
 
 1. **[Alpha3D MCP](https://alpha3d.io)** generates the actual 3D models and handles optional refinement (rigging, retopo, UV, texturing, segmentation).
-2. **A Blender MCP bridge** (a Blender add on that exposes a local `bpy` code execution tool over MCP) lets the agent import and place assets inside your running Blender instance.
+2. **A Blender MCP bridge** (a Blender add-on that exposes a local `bpy` code-execution tool over MCP) lets the agent import and place assets inside your running Blender instance.
 
-Your agent sequences both, downloads each generated model to local disk, sanitizes it for Blender's strict glTF loader, and imports it. See [`SKILL.md`](./skills/alpha3d-scenegen/SKILL.md) for the full step by step procedure.
+Your agent sequences both: it plans the scene, prices it, and after you confirm, downloads each model to local disk, sanitizes it for Blender's strict glTF loader, and imports it, arranging assets as each one finishes. See [`SKILL.md`](./skills/alpha3d-scenegen/SKILL.md) for the full step-by-step procedure.
+
+<details>
+<summary><b>Example: what actually happens for the village above</b></summary>
+
+Your agent first shows a plan and the cost, and stops:
+
+| Asset | Source | Quality | Credits |
+|---|---|---|---|
+| Stone well | generate | pbr | 42 |
+| Cottage (3 different) | generate x3 | pbr | 126 |
+| Wooden cart | generate | pbr | 42 |
+| Ground plane | primitive | n/a | 0 |
+| **Total** | | | **210** |
+
+> Building this spends **210** credits (balance after: 17,988). The ground is a free Blender plane. Confirm to build, or tell me what to change.
+
+On your go-ahead it submits all four generations at once, and as each finishes it imports the model, scales it (a well is about 1.5 m, a cottage about 5 m), drops it to the floor, and places it: the well at the center, the three cottages spaced around it in a ring, the cart out by the entrance. It ends with a viewport screenshot and the exact credits actually spent.
+
+</details>
 
 ## Prerequisites
 
 | Requirement | Why | Notes |
 |---|---|---|
-| An **MCP capable coding agent** that runs on your machine: **Claude Code**, **Cursor**, or **OpenAI Codex CLI** | Runs the workflow and reaches Blender on your machine | This talks to a Blender instance on your own computer, so it will not work from a fully hosted sandbox with no local access. Per-client setup is below. |
+| An **MCP capable coding agent** that runs on your machine: **Claude Code**, **Cursor**, or **OpenAI Codex CLI** | Runs the workflow and reaches Blender on your machine | Per-client setup is below. |
 | **An Alpha3D account with credits** + the **Alpha3D MCP connector** | Does the AI 3D generation | Generation spends real credits. Get an account at [alpha3d.io](https://alpha3d.io). |
-| **Blender 4.x or 5.x**, open, with a **Blender MCP bridge** add on running | Lets the agent run `bpy` in your session | Any bridge exposing a `bpy` code execution MCP tool works. The common one is [BlenderMCP](https://github.com/ahujasid/blender-mcp). |
+| **Blender 4.x or 5.x**, open, with a **Blender MCP bridge** add-on running | Lets the agent run `bpy` in your session | Any bridge exposing a `bpy` code-execution MCP tool works. The common one is [BlenderMCP](https://github.com/ahujasid/blender-mcp). |
+
+> [!NOTE]
+> This talks to a Blender instance on **your own computer**, so it will not work from a fully hosted sandbox with no local access. You run the agent and Blender side by side on the same machine.
 
 ## Installation
 
@@ -205,15 +249,32 @@ Open Blender on a scene and start the bridge server, then describe a small scene
 
 Just describe what you want in your open Blender scene:
 
-- *"Add a low poly goblin to my scene and rig it so I can pose it."*
+- *"Add a low-poly goblin to my scene and rig it so I can pose it."*
 - *"Fill this empty room: a wooden desk, a chair, a bookshelf against the back wall, and a desk lamp."*
-- *"Generate a sci fi crate and drop three of them near the origin."*
+- *"Generate a sci-fi crate and scatter five of them near the origin."*
+- *"Put a lamp on my desk and a small rug on the floor under it."* (it reads the desk that is already there)
+- *"Drop my dragon from last week onto the hill and add three different torches around it."* (reuses the dragon, generates the torches)
 
-Your agent will plan it, price it, ask you to confirm, then build it. You stay in control of every credit spent.
+Your agent will plan it, price it, ask you to confirm, then build it, arranging each model as it finishes. You stay in control of every credit spent.
 
 ## Cost
 
-Every generation and refinement step spends Alpha3D credits (full table in [`references/mcp_tools.md`](./skills/alpha3d-scenegen/references/mcp_tools.md)). Roughly: a generated model is 30 to 48 credits depending on quality, and optional passes like rigging, retopo, or texturing add more. Credits are debited when a job is submitted and **auto refunded if that job fails**. This skill always shows the full cost and waits for your confirmation before submitting.
+Generation and refinement spend Alpha3D credits. Reuse, primitives, duplicated copies, and concept images are free.
+
+| Operation | Credits |
+|---|---|
+| Generate (text / image / multi-view) | 30 standard, 42 PBR, 48 low-poly |
+| Rig | 15 to 27 |
+| Retopology | 60 |
+| UV unwrap | 12 |
+| Re-texture or segment | 54 to 61 |
+| Convert format | 12 |
+| Reuse from library, primitives, duplicated copies, concept images | free |
+
+Full, authoritative table in [`references/mcp_tools.md`](./skills/alpha3d-scenegen/references/mcp_tools.md).
+
+> [!IMPORTANT]
+> Credits are debited when a job is submitted and **auto-refunded if it fails**. This skill always shows the full cost and waits for your confirmation before submitting anything, so nothing is spent without your go-ahead.
 
 ## Repo layout
 
@@ -227,7 +288,7 @@ Every generation and refinement step spends Alpha3D credits (full table in [`ref
 │       ├── SKILL.md             # The skill: the full procedure the agent follows
 │       └── references/
 │           ├── mcp_tools.md         # Verified Alpha3D MCP tool contracts + cost table
-│           ├── blender_helpers.md   # Proven bpy code: download, sanitize, import, place
+│           ├── blender_helpers.md   # Proven bpy code: download, sanitize, import, place, duplicate
 │           └── troubleshooting.md   # Known failure modes and their fixes
 ├── evals/
 │   └── evals.json               # Test prompts for validating the skill
@@ -240,7 +301,7 @@ Every generation and refinement step spends Alpha3D credits (full table in [`ref
 
 The three things most likely to trip you up, with fixes, live in [`references/troubleshooting.md`](./skills/alpha3d-scenegen/references/troubleshooting.md):
 
-- **"Cannot connect to Blender":** the bridge server is not running. Open Blender and start it from the add on panel (it does not survive a Blender restart).
+- **"Cannot connect to Blender":** the bridge server is not running. Open Blender and start it from the add-on panel (it does not survive a Blender restart).
 - **"Bad GLB: file size doesn't match":** a malformed download. The skill's sanitize step handles this automatically.
 - **A job stays processing for minutes:** normal. Real generation takes time.
 
