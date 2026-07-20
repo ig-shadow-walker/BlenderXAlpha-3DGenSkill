@@ -1,0 +1,30 @@
+{
+  "name": "alpha3d-scenegen",
+  "version": "0.1.0",
+  "description": "One-command installer for the Alpha3D Scene Generator skill (generate 3D models with Alpha3D and build them into your open Blender scene).",
+  "bin": {
+    "alpha3d-scenegen": "bin/install.mjs"
+  },
+  "files": [
+    "bin/",
+    "skills/"
+  ],
+  "engines": {
+    "node": ">=16.7"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ig-shadow-walker/3DGenSkill.git"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agent-skill",
+    "mcp",
+    "blender",
+    "alpha3d",
+    "3d",
+    "text-to-3d"
+  ]
+}

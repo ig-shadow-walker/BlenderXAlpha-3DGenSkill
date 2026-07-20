@@ -89,7 +89,7 @@ decide:
 - **count**: how many of this exact object. If the user wants several
   identical copies ("three crates", "a row of six pillars"), plan ONE entry
   with count > 1, not N separate entries. You generate or fetch the asset
-  once and duplicate it in Blender (Step 5), so nine identical crates still
+  once and duplicate it in Blender (Step 4), so nine identical crates still
   cost a single generation. Only make separate entries when the copies
   should genuinely differ ("three different cottages" is three entries).
 - **source**: `generate`, `reuse`, `primitive`, or `skip`. This decision
@@ -118,7 +118,7 @@ decide:
 - **target_size_m**: the object's largest real-world dimension in meters,
   reasoned from what it is (a house is meters tall, a coin is centimeters).
   Generated meshes come back at an arbitrary internal scale, not the real
-  world size. You normalize this after import in Step 5.
+  world size. You normalize this after import in Step 4.
 - **needs_postprocess**: does this asset need `rig_3d` (a character or
   creature the user wants to animate or pose), `segment_3d` (a mechanical
   object the user wants to manipulate part-by-part), `retopologize`, or
@@ -132,7 +132,7 @@ decide:
   spaced along a line; an unordered list of props implies a simple grid with
   spacing derived from each item's `target_size_m` so nothing ends up
   overlapping. For a count > 1, write one coordinate per copy. Write down
-  actual (x, y) coordinates now, you'll apply them in Step 5. If the
+  actual (x, y) coordinates now, you'll apply them in Step 4. If the
   description implies a facing (a cart "facing the well", chairs "around a
   table"), note a Z rotation too; generated meshes have no guaranteed front,
   so treat facing as best-effort and call it out in your report so the user
@@ -171,59 +171,77 @@ tool). If the whole plan happens to be free (all reuse/primitive/skip), you
 can proceed once you've shown it, but still show it first so the user can
 correct anything before you build.
 
-## Step 3: Submit generation jobs, in parallel
+If the balance will not cover the whole plan, say so now. Generation runs
+one asset at a time (Step 3) and stops when credits run out, so tell the
+user roughly how many assets their balance covers and let them top up, trim,
+or reprioritize before you start. Order the plan by importance so that if it
+does stop early, the scene still got the assets that matter most.
 
-For every `generate` asset, call `generate_3d` (or `image_to_3d`/multiview
-per `references/mcp_tools.md`). There is no shared client-side state
-limiting how many jobs you can have in flight (each call is independent), so
-submit all of them back-to-back rather than waiting for one to finish
-before starting the next. Track each returned `job_id` against its plan
-entry; you'll need both together for every step from here on.
+## Step 3: Generate and place, one asset at a time (a queue)
 
-Always pass a clear, unique `title` (the asset's name from your plan). It
-labels the asset in the user's library, which is what lets you recover it
-later without paying again if the run gets interrupted (see the note below).
+Work through the plan as a **queue, one credit-spending job at a time, not
+in parallel**. Sequential generation is what lets the run stop on a clean
+boundary the moment credits run out, instead of having already submitted
+(and paid for) a batch it cannot finish.
 
-## Step 4: Poll until every job finishes
+Reuse and primitive assets are free, so handle those whenever convenient
+(fetch + import, or build the primitive); they don't affect the credit
+logic. For the `generate` assets, go in the priority order you set at Step 2
+and, for each one in turn:
 
-Round-robin `get_job(job_id)` across everything still pending. The tool's
-own guidance is to poll every 15-30 seconds, and real generations take
-minutes. This loop naturally spans several of your own turns rather than
-one blocking call. That's expected; don't shorten the interval just to look
-responsive, and don't give up early. For each job: `queued`/`processing`
-means keep waiting; `completed` means record the download link(s);
-`error` means record the failure reason and move on without blocking the
-rest of the scene on it; a single failed asset should not sink the build.
+1. **Check you can afford it first.** Track the remaining balance from the
+   figure you showed at Step 2, subtracting each job as it completes. If the
+   next asset's cost is more than what's left, **stop here**: do not submit
+   it. A free `get_credit_balance` call confirms the real number if you are
+   unsure.
+2. **Submit exactly one job** with `generate_3d`, passing a clear, unique
+   `title` (the asset's name from your plan; it labels the asset in the
+   user's library, which is what makes recovery and reuse possible later).
+3. **Poll `get_job(job_id)` every 15-30 seconds until it is `completed` or
+   `error`.** Real generations take minutes; that is normal, so don't
+   shorten the interval or give up early. This waiting naturally spans
+   several of your own turns.
+4. On `completed`, **import and place it right away** (Step 4) so the user
+   watches the scene fill in as it goes. On `error`, record the reason (the
+   credits auto-refund) and move on; one failed asset should not sink the
+   rest.
+5. Continue to the next asset in the queue.
 
-**Import each asset the moment its job completes** (its Step 5 pass), while
-the others keep generating. Don't wait for the whole batch to finish first:
-importing as you go means the user sees the scene fill in, and one slow or
-stuck job never blocks the assets that are already ready.
+Stopping for lack of credits is not a failure, so don't report it as one:
+say what got built, what is still queued, and how many more credits the rest
+would need. The assets already placed stay in the scene, and anything
+generated is saved in the user's library, so once they top up you can resume
+from where you left off (via the `reuse` path) without repaying for what is
+already done.
 
-## Step 5: Download, sanitize, import, normalize, and place (one `execute_blender_code` call per asset)
+> Why one at a time and not in parallel: submitting every job at once debits
+> every job's credits up front. If the balance cannot cover the whole plan, a
+> parallel batch spends on work it cannot complete and ends in a messy,
+> half-done state. A queue keeps spend predictable and stops cleanly.
 
-Each asset now has a GLB download URL: for a `generate` asset it comes from
-its completed `get_job`; for a `reuse` asset it comes from `fetch(id)` (those
-skip Steps 3 and 4 entirely, since nothing was generated). The import is
-identical either way.
+## Step 4: Import and place one asset (one `execute_blender_code` call)
 
-Do the entire pipeline for one asset in a single call rather than several
-round trips: download the GLB bytes, truncate them if Blender's strict
-loader would otherwise reject them ("Bad GLB: file size doesn't match" is a
-real, previously-hit failure; see why in `references/blender_helpers.md`),
-write to a temp file, import, compute its bounding box, scale to
-`target_size_m`, drop it to the ground plane, group it under a named Empty,
-and move that Empty to the coordinates you planned in Step 1. The working
-code for all of this is in `references/blender_helpers.md`. Read it and
-adapt the parameters per asset rather than writing it from scratch each
-time; the byte-truncation math in particular is easy to get subtly wrong if
-you rederive it.
+Each asset has a GLB download URL: for a `generate` asset it comes from its
+completed `get_job`; for a `reuse` asset it comes from `fetch(id)`. The
+import is identical either way.
+
+Do the whole thing in a single call rather than several round trips:
+download the GLB bytes, truncate them if Blender's strict loader would
+otherwise reject them ("Bad GLB: file size doesn't match" is a real,
+previously-hit failure; see why in `references/blender_helpers.md`), write to
+a temp file, import, compute its bounding box, scale to `target_size_m`, drop
+it to the ground plane, group it under a named Empty, and move that Empty to
+the coordinates you planned in Step 1. The working code is in
+`references/blender_helpers.md`. Read it and adapt the parameters per asset
+rather than writing it from scratch; the byte-truncation math in particular
+is easy to get subtly wrong if you rederive it.
 
 For an asset with **count > 1**, use `build_asset` (in
 `references/blender_helpers.md`): it downloads the GLB once and places a
 uniquely-named copy at each coordinate you planned, so the extra copies cost
 no credits, and it cleans up the temp file for you. For a very large count,
-`duplicate_linked` makes mesh-sharing copies that keep the scene light.
+`duplicate_linked` makes mesh-sharing copies that keep the scene light. This
+is the other half of the cost story: identical copies never re-generate.
 
 If a completed job's response includes more than one download link
 (`segment_3d` splits a mesh into labeled parts, each its own GLB), import
@@ -231,23 +249,25 @@ every part under the *same* parent Empty rather than creating a separate
 Empty per part. The parts are meant to be treated as one object made of
 pieces, not as separate scene objects.
 
-## Step 6: Optional post-processing pass
+## Step 5: Optional refinement pass
 
 For any asset flagged `needs_postprocess` in Step 1, submit the relevant
 tool (`rig_3d`, `segment_3d`, `retopologize`, `uv_unwrap`) against that
-asset's `post_id` from its completed generation job. These can run freely
-in parallel with each other and with anything still generating; they're
-just more independent `job_id`s to poll the same way as Step 4. When one
-completes, repeat the Step 5 import for its result.
+asset's `post_id` from its completed generation job. These spend credits
+too, so run them through the **same one-at-a-time, check-credits-first
+queue** as generation: afford it, submit one, poll to `completed`, import
+the result (Step 4), then the next. Stop if credits run out.
 
-## Step 7: Report back
+## Step 6: Report back
 
 Take a screenshot of the viewport so the user can see the actual result
 without switching windows. Summarize what was built, what failed (with the
-real reason, not a vague "something went wrong"), and the total credits
-*actually* spent. Count only jobs that reached `completed`, since a failed
-job auto-refunds and was never really spent. Ask if they want anything
-repositioned, resized, or regenerated before considering the scene done.
+real reason, not a vague "something went wrong"), whether the run stopped
+early for credits (and how many more it would need to finish), and the total
+credits *actually* spent. Count only jobs that reached `completed`, since a
+failed job auto-refunds and was never really spent. Ask if they want
+anything repositioned, resized, or regenerated before considering the scene
+done.
 
 ## If a run gets interrupted after generating
 
@@ -256,7 +276,7 @@ Alpha3D library. If the run breaks after that (the Blender bridge drops, the
 conversation resets) before you placed the asset, do NOT regenerate it, that
 charges the user a second time for a model they already own. Recover it
 instead: `search` or `list_library` by the `title` you set in Step 3, then
-`fetch` its download link and import (Step 5). This is exactly the `reuse`
+`fetch` its download link and import (Step 4). This is exactly the `reuse`
 path from Step 1, and it is why every generation gets a clear, unique title.
 
 ## If something goes wrong mid-run

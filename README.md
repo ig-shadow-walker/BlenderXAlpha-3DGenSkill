@@ -34,7 +34,7 @@ You say:
 
 > *"I've got Blender open on an empty scene. Build me a small fantasy village: a stone well in the center, three different cottages around it, and a wooden cart by the entrance."*
 
-Your agent breaks that into individual assets, shows you exactly what each one costs in Alpha3D credits, waits for your go-ahead, generates every model in parallel, and imports each into your live Blender file, scaled to a sensible real-world size, dropped to the floor, and arranged into the layout you described. No manual export, download, or import.
+Your agent breaks that into individual assets, shows you exactly what each one costs in Alpha3D credits, waits for your go-ahead, then generates them one at a time, importing each into your live Blender file as it finishes, scaled to a sensible real-world size, dropped to the floor, and arranged into the layout you described. No manual export, download, or import.
 
 ## Contents
 
@@ -74,7 +74,7 @@ You stay in the loop: it always plans and prices the work first, and never spend
 | **Layout reasoning** | "Around the well" becomes a circle, "along the path" a line, a loose list a spaced grid, with facing applied where the description implies it. |
 | **Refinement passes** | Optional auto-rig, retopology, UV unwrap, re-texture, or part segmentation, triggered from your words ("rig it so I can pose it"). |
 | **Concept image to 3D, for free** | Generate a concept image with FLUX first; once you like it, turn that exact image into a model. |
-| **Cost-safe by design** | Shows a per-asset cost table and waits for confirmation; failed jobs auto-refund; an interrupted run recovers already-paid assets from your library instead of charging twice. |
+| **Cost-safe by design** | Generates one asset at a time and stops cleanly the moment you run out of credits, never mid-committing a batch it can't finish. Shows a per-asset cost table and waits for confirmation; failed jobs auto-refund; an interrupted run recovers already-paid assets from your library instead of charging twice. |
 | **Fails loudly, not silently** | If Blender is not connected or a model comes back malformed, it tells you what is wrong and how to fix it, rather than producing a cryptic error. |
 
 > [!TIP]
@@ -113,7 +113,7 @@ Your agent first shows a plan and the cost, and stops:
 
 > Building this spends **210** credits (balance after: 17,988). The ground is a free Blender plane. Confirm to build, or tell me what to change.
 
-On your go-ahead it submits all four generations at once, and as each finishes it imports the model, scales it (a well is about 1.5 m, a cottage about 5 m), drops it to the floor, and places it: the well at the center, the three cottages spaced around it in a ring, the cart out by the entrance. It ends with a viewport screenshot and the exact credits actually spent.
+On your go-ahead it generates them one at a time, checking your balance before each so it stops cleanly if you run low. As each finishes it imports the model, scales it (a well is about 1.5 m, a cottage about 5 m), drops it to the floor, and places it: the well at the center, the three cottages spaced around it in a ring, the cart out by the entrance. It ends with a viewport screenshot and the exact credits actually spent.
 
 </details>
 
@@ -140,14 +140,26 @@ The skill has two parts, and setup depends on your client:
 <details open>
 <summary><b>Claude Code</b></summary>
 
-**Install the skill.** The one-command path is the plugin marketplace:
+**Install the skill (easiest).** One command, no plugin, no clone. It copies the skill into your Claude Code skills folder:
 
-```text
-/plugin marketplace add ig-shadow-walker/3DGenSkill
-/plugin install alpha3d-scenegen@alpha3d
+```bash
+npx github:ig-shadow-walker/3DGenSkill
 ```
 
-`alpha3d` is the marketplace name, `alpha3d-scenegen` is the plugin; the skill loads automatically once enabled (requires Claude Code v2.1.143+). There is no `npx`/npm installer for Claude Code skills; this is the equivalent. To install manually instead, `git clone` this repo and copy the folder: `cp -r 3DGenSkill/skills/alpha3d-scenegen ~/.claude/skills/`.
+By default it installs to `~/.claude/skills/alpha3d-scenegen/` (available in every project). Add `--project` to install into the current repo's `.claude/skills/` instead, or `--dir <path>` to target any folder. The installer is dependency-free and prints exactly what it copied. Claude Code discovers the skill from its `SKILL.md`; no restart needed.
+
+<details>
+<summary>Prefer not to use npx? Two other ways</summary>
+
+- **Manual copy:** `git clone https://github.com/ig-shadow-walker/3DGenSkill.git`, then `cp -r 3DGenSkill/skills/alpha3d-scenegen ~/.claude/skills/`.
+- **Plugin marketplace**, if you'd rather manage it with `/plugin list`, `/plugin disable`, `/plugin uninstall` (requires Claude Code v2.1.143+):
+
+  ```text
+  /plugin marketplace add ig-shadow-walker/3DGenSkill
+  /plugin install alpha3d-scenegen@alpha3d
+  ```
+
+</details>
 
 **Connect both MCP servers:**
 
@@ -280,8 +292,11 @@ Full, authoritative table in [`references/mcp_tools.md`](./skills/alpha3d-sceneg
 
 ```
 3DGenSkill/
+├── bin/
+│   └── install.mjs              # npx installer (copies the skill into place)
+├── package.json                 # Lets `npx github:...` run the installer
 ├── .claude-plugin/
-│   ├── plugin.json              # Plugin manifest
+│   ├── plugin.json              # Plugin manifest (for the /plugin route)
 │   └── marketplace.json         # Marketplace catalog (powers /plugin install)
 ├── skills/
 │   └── alpha3d-scenegen/
