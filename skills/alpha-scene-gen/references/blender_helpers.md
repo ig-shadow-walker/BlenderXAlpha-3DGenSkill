@@ -257,10 +257,69 @@ def summarize_scene():
 result = summarize_scene()
 ```
 
-## Viewport screenshot for the final report
+## Seeing the scene (visual understanding and verification)
+
+Object bounds tell you where things are; an actual image tells you whether
+the scene looks right, whether a model faces the wrong way, sits in the
+floor, floats, or intersects a neighbor. There are two ways to get one, in
+order of preference:
+
+1. **A native screenshot tool on your bridge**, if it has one (BlenderMCP
+   exposes `get_viewport_screenshot`; other bridges may have an equivalent).
+   It returns the current viewport image inline, so you see it directly. Ask
+   for a size cap / lower resolution if offered: an uncapped full-resolution
+   image can overflow the MCP response and error with something like
+   "Unterminated string" rather than a clear size message.
+2. **Render to a local PNG and read that file.** Works with any bridge, since
+   you (the agent) run on the same machine as Blender and can open the file.
+   The helper below renders a framed 3/4 view with Workbench (fast, no lights
+   to set up), restores every setting it touched, and cleans up its camera.
 
 ```python
-# Use your screenshot/render tool with a size cap. An uncapped full-resolution
-# screenshot can overflow the MCP response and error with something like
-# "Unterminated string" rather than a clear size-limit message.
+import bpy, mathutils
+
+def render_scene(path, resolution=768):
+    """Render all mesh objects to a PNG at `path` from a 3/4 view so the
+    agent can look at the result. Returns path. Read the file afterward with
+    your normal image-viewing capability."""
+    scene = bpy.context.scene
+    meshes = [o for o in scene.objects if o.type == "MESH"]
+    mins = mathutils.Vector((float("inf"),) * 3)
+    maxs = mathutils.Vector((float("-inf"),) * 3)
+    for o in meshes:
+        for c in o.bound_box:
+            w = o.matrix_world @ mathutils.Vector(c)
+            mins = mathutils.Vector(min(a, b) for a, b in zip(mins, w))
+            maxs = mathutils.Vector(max(a, b) for a, b in zip(maxs, w))
+    if not meshes:
+        mins, maxs = mathutils.Vector((-1, -1, 0)), mathutils.Vector((1, 1, 1))
+    center = (mins + maxs) / 2
+    radius = max((maxs - mins).length / 2, 1.0)
+
+    cam_data = bpy.data.cameras.new("alpha3d_view_cam")
+    cam = bpy.data.objects.new("alpha3d_view_cam", cam_data)
+    scene.collection.objects.link(cam)
+    d = radius * 2.6
+    cam.location = center + mathutils.Vector((d * 0.7, -d * 0.7, d * 0.6))
+    cam.rotation_euler = (center - cam.location).to_track_quat("-Z", "Y").to_euler()
+
+    prev = (scene.camera, scene.render.engine, scene.render.resolution_x,
+            scene.render.resolution_y, scene.render.filepath,
+            scene.render.image_settings.file_format)
+    try:
+        scene.camera = cam
+        scene.render.engine = "BLENDER_WORKBENCH"
+        scene.render.resolution_x = scene.render.resolution_y = resolution
+        scene.render.image_settings.file_format = "PNG"
+        scene.render.filepath = path
+        bpy.ops.render.render(write_still=True)
+    finally:
+        (scene.camera, scene.render.engine, scene.render.resolution_x,
+         scene.render.resolution_y, scene.render.filepath,
+         scene.render.image_settings.file_format) = prev
+        bpy.data.objects.remove(cam, do_unlink=True)
+        bpy.data.cameras.remove(cam_data)
+    return path
+
+result = render_scene("/tmp/alpha3d_scene_view.png")
 ```

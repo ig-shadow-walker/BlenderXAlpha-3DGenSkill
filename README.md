@@ -71,6 +71,7 @@ You stay in the loop: it always plans and prices the work first, and never spend
 | **Identical copies for one price** | "Five barrels" generates once and duplicates the rest inside Blender, so the extra copies cost zero credits. |
 | **Smart source triage** | Hero props and organic shapes get AI-generated; a flat floor or plain cube is built as a free Blender primitive; atmosphere like sky or fog is skipped. You never pay to generate a cube. |
 | **Scene-aware placement** | Reads what is already in your file, so "on my desk" lands on the actual desk. Then it scales each asset to a real-world size, drops it to the floor, and groups it under a named Empty. |
+| **Sees the scene** | It does not fly blind. It can view the viewport (your bridge's screenshot, or a quick render it reads back) to understand an existing scene before planning, and to check its own work after, fixing anything that intersects, floats, sinks into the floor, or faces the wrong way. |
 | **Layout reasoning** | "Around the well" becomes a circle, "along the path" a line, a loose list a spaced grid, with facing applied where the description implies it. |
 | **Refinement passes** | Optional auto-rig, retopology, UV unwrap, re-texture, or part segmentation, triggered from your words ("rig it so I can pose it"). |
 | **Concept image to 3D, for free** | Generate a concept image with FLUX first; once you like it, turn that exact image into a model. |
@@ -96,7 +97,7 @@ flowchart LR
 1. **[Alpha3D MCP](https://alpha3d.io)** generates the actual 3D models and handles optional refinement (rigging, retopo, UV, texturing, segmentation).
 2. **A Blender MCP bridge** (a Blender add-on that exposes a local `bpy` code-execution tool over MCP) lets the agent import and place assets inside your running Blender instance.
 
-Your agent sequences both: it plans the scene, prices it, and after you confirm, downloads each model to local disk, sanitizes it for Blender's strict glTF loader, and imports it, arranging assets as each one finishes. See [`SKILL.md`](./skills/alpha-scene-gen/SKILL.md) for the full step-by-step procedure.
+Your agent sequences both: it plans the scene, prices it, and after you confirm, downloads each model to local disk, sanitizes it for Blender's strict glTF loader, and imports it, arranging assets as each one finishes. It can also see the viewport (via a screenshot or a quick render) to understand an existing scene and to check its own work. See [`SKILL.md`](./skills/alpha-scene-gen/SKILL.md) for the full step-by-step procedure.
 
 <details>
 <summary><b>Example: what actually happens for the village above</b></summary>

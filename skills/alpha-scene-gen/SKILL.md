@@ -33,16 +33,18 @@ models, placed and scaled correctly inside the user's currently open Blender
 file. You are the orchestrator: the Alpha3D MCP connector does the AI
 generation, the Blender MCP connector does the placement, and you do the
 scene reasoning that ties them together, deciding what to generate, how big
-it should be, and where it goes.
+it should be, where it goes, and (by actually looking at the result) whether
+it landed right.
 
 Three files carry the parts of this skill that are pure mechanism rather than
 judgment, so you don't have to re-derive them each time:
 - `references/mcp_tools.md`: verified tool contracts, and where live pricing
   comes from, for every Alpha3D MCP tool this skill uses.
 - `references/blender_helpers.md`: proven Python (download, sanitize,
-  import, normalize, place) to adapt inside your `execute_blender_code`
-  calls. The sanitize step in particular fixes a real, previously-debugged
-  Blender import failure. Don't skip it or try to reinvent it.
+  import, normalize, place, and render a view so you can see the scene) to
+  adapt inside your `execute_blender_code` calls. The sanitize step in
+  particular fixes a real, previously-debugged Blender import failure. Don't
+  skip it or try to reinvent it.
 - `references/troubleshooting.md`: what to do when a specific thing goes
   wrong (bridge disconnected, malformed GLB, job errored, insufficient
   credits).
@@ -74,13 +76,17 @@ Don't proceed partway and produce a confusing failure later.
 
 ## Step 1: Turn the description into an asset plan
 
-First, look at what you are building into. The scene is often not empty. If
-the request references existing content ("on the desk", "next to the
+First, understand what you are building into. The scene is often not empty.
+If the request references existing content ("on the desk", "next to the
 character", "fill the empty corner") or the scene may already have objects,
 inspect it with a free `execute_blender_code` call (`summarize_scene` in
-`references/blender_helpers.md`). Anchor new assets to the real coordinates
-of what is already there, and keep them clear of existing geometry. Treat
-the scene as an empty floor only if it actually is one.
+`references/blender_helpers.md`) for the exact coordinates, and, for anything
+beyond a trivial empty scene, also **look** at it: use your bridge's
+screenshot tool or render a view (`render_scene`, see "Seeing the scene" in
+`references/blender_helpers.md`). A picture tells you the layout and
+orientation that a list of bounding boxes cannot. Anchor new assets to the
+real coordinates of what is already there, and keep them clear of existing
+geometry. Treat the scene as an empty floor only if it actually is one.
 
 Then build a structured plan, one entry per distinct object. For each,
 decide:
@@ -261,16 +267,25 @@ too, so run them through the **same one-at-a-time, check-credits-first
 queue** as generation: afford it, submit one, poll to `completed`, import
 the result (Step 4), then the next. Stop if credits run out.
 
-## Step 6: Report back
+## Step 6: Look, fix, and report
 
-Take a screenshot of the viewport so the user can see the actual result
-without switching windows. Summarize what was built, what failed (with the
-real reason, not a vague "something went wrong"), whether the run stopped
-early for credits (and how many more it would need to finish), and the total
-credits *actually* spent. Count only jobs that reached `completed`, since a
-failed job auto-refunds and was never really spent. Ask if they want
-anything repositioned, resized, or regenerated before considering the scene
-done.
+See the result; do not just trust the coordinates. Capture the scene with
+your bridge's screenshot tool, or render a view with `render_scene`
+(`references/blender_helpers.md`) and read the image. Look for what bounding
+boxes can't tell you: assets intersecting each other, sunk into or floating
+above the floor, wildly off in scale, or facing the wrong way. Fix anything
+off with a follow-up `execute_blender_code` call (move, scale, or rotate that
+asset's Empty), then look again to confirm the fix. A quick look-and-adjust
+pass is what turns "technically placed" into "actually looks like the scene
+they asked for."
+
+Then report to the user, ideally with that image: what was built, what
+failed (the real reason, not a vague "something went wrong"), whether the run
+stopped early for credits (and how many more it would need to finish), and
+the total credits *actually* spent (count only jobs that reached
+`completed`; a failed job auto-refunds and was never really spent). Ask if
+they want anything repositioned, resized, or regenerated before calling the
+scene done.
 
 ## If a run gets interrupted after generating
 
