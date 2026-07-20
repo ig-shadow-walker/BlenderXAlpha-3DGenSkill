@@ -1,5 +1,5 @@
 {
-  "name": "alpha3d-scenegen",
+  "name": "alpha-scene-gen",
   "description": "Generate 3D models with Alpha3D and build them into your open Blender scene, scaled, grounded, and placed from a plain-language description.",
   "version": "0.1.0",
   "author": {

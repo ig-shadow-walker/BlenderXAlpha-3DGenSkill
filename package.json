@@ -1,9 +1,9 @@
 {
-  "name": "alpha3d-scenegen",
+  "name": "alpha-scene-gen",
   "version": "0.1.0",
   "description": "One-command installer for the Alpha3D Scene Generator skill (generate 3D models with Alpha3D and build them into your open Blender scene).",
   "bin": {
-    "alpha3d-scenegen": "bin/install.mjs"
+    "alpha-scene-gen": "bin/install.mjs"
   },
   "files": [
     "bin/",

@@ -1,5 +1,5 @@
 ---
-name: alpha3d-scenegen
+name: alpha-scene-gen
 description: >
   Generates AI 3D models through the Alpha3D MCP connector and imports them
   directly into the user's currently open Blender scene, scaled and placed to

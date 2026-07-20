@@ -96,7 +96,7 @@ flowchart LR
 1. **[Alpha3D MCP](https://alpha3d.io)** generates the actual 3D models and handles optional refinement (rigging, retopo, UV, texturing, segmentation).
 2. **A Blender MCP bridge** (a Blender add-on that exposes a local `bpy` code-execution tool over MCP) lets the agent import and place assets inside your running Blender instance.
 
-Your agent sequences both: it plans the scene, prices it, and after you confirm, downloads each model to local disk, sanitizes it for Blender's strict glTF loader, and imports it, arranging assets as each one finishes. See [`SKILL.md`](./skills/alpha3d-scenegen/SKILL.md) for the full step-by-step procedure.
+Your agent sequences both: it plans the scene, prices it, and after you confirm, downloads each model to local disk, sanitizes it for Blender's strict glTF loader, and imports it, arranging assets as each one finishes. See [`SKILL.md`](./skills/alpha-scene-gen/SKILL.md) for the full step-by-step procedure.
 
 <details>
 <summary><b>Example: what actually happens for the village above</b></summary>
@@ -132,7 +132,7 @@ On your go-ahead it generates them one at a time, checking your balance before e
 The skill has two parts, and setup depends on your client:
 
 1. **Two MCP connectors.** **Alpha3D** (remote, at `https://api.alpha3d.io/mcp`, with a browser OAuth step on first use) and a **Blender bridge** (a local stdio server, e.g. `uvx blender-mcp`).
-2. **The skill's instructions.** The `skills/alpha3d-scenegen/` folder (`SKILL.md` plus `references/`). Claude Code loads these automatically as a skill or plugin. Cursor and Codex have no Agent Skills system, so you connect the same two MCP servers and point the tool at these instructions through its own rules file or `AGENTS.md`.
+2. **The skill's instructions.** The `skills/alpha-scene-gen/` folder (`SKILL.md` plus `references/`). Claude Code loads these automatically as a skill or plugin. Cursor and Codex have no Agent Skills system, so the same two MCP servers get connected and the tool is pointed at these instructions through its own rules file or `AGENTS.md`. The `npx` installer below sets all of that up for you per client, so each one is a single command.
 
 **The Blender side is identical for every client:** install a bridge add-on such as [BlenderMCP](https://github.com/ahujasid/blender-mcp) in Blender, and **start its server** (a button in the add-on's panel) each session. The per-client config below only tells your agent how to launch or reach that bridge, plus the remote Alpha3D server. You also need an [alpha3d.io](https://alpha3d.io) account with credits.
 
@@ -145,17 +145,17 @@ The skill has two parts, and setup depends on your client:
 npx github:ig-shadow-walker/3DGenSkill
 ```
 
-By default it installs to `~/.claude/skills/alpha3d-scenegen/` (available in every project). Add `--project` to install into the current repo's `.claude/skills/` instead, or `--dir <path>` to target any folder. The installer is dependency-free and prints exactly what it copied. Claude Code discovers the skill from its `SKILL.md`; no restart needed.
+By default it installs to `~/.claude/skills/alpha-scene-gen/` (available in every project). Add `--project` to install into the current repo's `.claude/skills/` instead, or `--dir <path>` to target any folder. The installer is dependency-free and prints exactly what it copied. Claude Code discovers the skill from its `SKILL.md`; no restart needed.
 
 <details>
 <summary>Prefer not to use npx? Two other ways</summary>
 
-- **Manual copy:** `git clone https://github.com/ig-shadow-walker/3DGenSkill.git`, then `cp -r 3DGenSkill/skills/alpha3d-scenegen ~/.claude/skills/`.
+- **Manual copy:** `git clone https://github.com/ig-shadow-walker/3DGenSkill.git`, then `cp -r 3DGenSkill/skills/alpha-scene-gen ~/.claude/skills/`.
 - **Plugin marketplace**, if you'd rather manage it with `/plugin list`, `/plugin disable`, `/plugin uninstall` (requires Claude Code v2.1.143+):
 
   ```text
   /plugin marketplace add ig-shadow-walker/3DGenSkill
-  /plugin install alpha3d-scenegen@alpha3d
+  /plugin install alpha-scene-gen@alpha3d
   ```
 
 </details>
@@ -174,14 +174,18 @@ Alpha3D prompts for browser authorization on first use (this links your account 
 <details>
 <summary><b>Cursor</b></summary>
 
-**Get the instructions locally:**
+One command in your project. It copies the skill, adds both MCP servers to `.cursor/mcp.json` (merging, never overwriting), and writes the rule that points Cursor at the skill:
 
 ```bash
-git clone https://github.com/ig-shadow-walker/3DGenSkill.git
-# keep or copy the skills/alpha3d-scenegen/ folder inside your project
+npx github:ig-shadow-walker/3DGenSkill --cursor
 ```
 
-**Connect both MCP servers.** Add them to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+Then, in Cursor, open **Settings > MCP**, make sure both servers are on, and click **Authenticate** on **alpha3d** to sign in. That browser step is the only thing a script can't do. If the login window doesn't open, toggle the server off and on.
+
+<details>
+<summary>Prefer to set it up by hand?</summary>
+
+Add both servers to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
 
 ```json
 {
@@ -192,9 +196,7 @@ git clone https://github.com/ig-shadow-walker/3DGenSkill.git
 }
 ```
 
-Open **Settings > MCP**, make sure both are toggled on, and for **alpha3d** click **Authenticate** to complete the browser OAuth (Cursor handles the flow natively; no credentials go in the file). If the login window never opens, toggle the server off and on, or restart Cursor.
-
-**Load the instructions** as an always-on Project Rule at `.cursor/rules/alpha3d-scenegen.mdc`:
+Then put the skill folder in your project and create `.cursor/rules/alpha-scene-gen.mdc` so Cursor always applies it:
 
 ```md
 ---
@@ -203,33 +205,35 @@ alwaysApply: true
 ---
 
 When the user asks to generate, build, or populate a Blender scene with 3D
-assets, follow the workflow in `skills/alpha3d-scenegen/SKILL.md` and its
+assets, follow the workflow in `skills/alpha-scene-gen/SKILL.md` and its
 `references/` files. Read them before acting.
 ```
+
+</details>
 
 </details>
 
 <details>
 <summary><b>OpenAI Codex CLI</b></summary>
 
-Native remote MCP and OAuth landed in Codex in late 2025, so use a current version (`codex --version`, upgrade if `codex mcp login` is missing).
-
-**Get the instructions locally:**
+One command in your project. It copies the skill and adds the reference to `AGENTS.md`:
 
 ```bash
-git clone https://github.com/ig-shadow-walker/3DGenSkill.git
-# keep or copy the skills/alpha3d-scenegen/ folder inside your project
+npx github:ig-shadow-walker/3DGenSkill --codex
 ```
 
-**Connect both MCP servers:**
+Then add the two MCP servers with Codex's own commands (use a current Codex; `codex mcp login` needs its late-2025 remote-MCP support, check with `codex --version`):
 
 ```bash
 codex mcp add alpha3d --url https://api.alpha3d.io/mcp
-codex mcp login alpha3d        # opens the browser OAuth flow
+codex mcp login alpha3d        # opens the browser sign-in
 codex mcp add blender -- uvx blender-mcp
 ```
 
-Equivalently, edit `~/.codex/config.toml`:
+<details>
+<summary>Prefer to set it up by hand?</summary>
+
+Instead of the `codex mcp add` commands you can edit `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.alpha3d]
@@ -240,15 +244,17 @@ command = "uvx"
 args = ["blender-mcp"]
 ```
 
-**Load the instructions** by adding this to `AGENTS.md` (repo root, or `~/.codex/AGENTS.md` for all projects):
+And add this to `AGENTS.md` (repo root, or `~/.codex/AGENTS.md` for all projects):
 
 ```md
 ## 3D scene generation in Blender
 
 When the user asks to generate, build, or populate a Blender scene with 3D
-assets, follow the workflow in `skills/alpha3d-scenegen/SKILL.md` and its
+assets, follow the workflow in `skills/alpha-scene-gen/SKILL.md` and its
 `references/` files. Read them before acting.
 ```
+
+</details>
 
 </details>
 
@@ -288,7 +294,7 @@ The same credit pricing as the Alpha3D platform applies. For current rates, see 
 │   ├── plugin.json              # Plugin manifest (for the /plugin route)
 │   └── marketplace.json         # Marketplace catalog (powers /plugin install)
 ├── skills/
-│   └── alpha3d-scenegen/
+│   └── alpha-scene-gen/
 │       ├── SKILL.md             # The skill: the full procedure the agent follows
 │       └── references/
 │           ├── mcp_tools.md         # Verified Alpha3D MCP tool contracts + cost table
@@ -303,7 +309,7 @@ The same credit pricing as the Alpha3D platform applies. For current rates, see 
 
 ## Troubleshooting
 
-The three things most likely to trip you up, with fixes, live in [`references/troubleshooting.md`](./skills/alpha3d-scenegen/references/troubleshooting.md):
+The three things most likely to trip you up, with fixes, live in [`references/troubleshooting.md`](./skills/alpha-scene-gen/references/troubleshooting.md):
 
 - **"Cannot connect to Blender":** the bridge server is not running. Open Blender and start it from the add-on panel (it does not survive a Blender restart).
 - **"Bad GLB: file size doesn't match":** a malformed download. The skill's sanitize step handles this automatically.
