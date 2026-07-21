@@ -277,15 +277,79 @@ npx github:ig-shadow-walker/3DGenSkill --provider meshy      # or tripo, or alph
 
 To change later, edit `provider` in `skills/alpha-scene-gen/provider.json` (wherever the skill was installed) and connect that provider's MCP. The skill reads this file at the start of every run.
 
-Each provider needs its MCP server connected. Alpha3D uses browser sign-in (no key); Tripo and Meshy use an API key:
+Then connect that provider's MCP server. Alpha3D uses browser sign-in (no key); Tripo and Meshy each need an API key you paste into the command. **In every case you also connect the Blender bridge once** (`claude mcp add blender -- uvx blender-mcp`, or the Cursor/Codex equivalent from [Installation](#installation)). Pick your provider below.
 
-| Provider | Connect (Claude Code) | Auth |
-|---|---|---|
-| **Alpha3D** | `claude mcp add --transport http alpha3d https://api.alpha3d.io/mcp` | browser sign-in |
-| **Tripo** | `claude mcp add tripo -- npx -y tripo-ai-mcp-server` | `TRIPO_API_SECRET` (key from platform.tripo3d.ai) |
-| **Meshy** | `claude mcp add meshy -- npx -y @meshy-ai/meshy-mcp-server` | `MESHY_API_KEY` (key from meshy.ai) |
+<details open>
+<summary><b>Alpha3D</b> (default, browser sign-in, no key)</summary>
 
-For Cursor/Codex connection commands and the exact per-provider tool contracts, see the adapter docs in [`skills/alpha-scene-gen/references/providers/`](./skills/alpha-scene-gen/references/providers/).
+```bash
+# 1. install the skill for your client (default provider is already alpha3d)
+npx github:ig-shadow-walker/3DGenSkill            # add --cursor or --codex for those clients
+
+# 2. connect Alpha3D
+claude mcp add --transport http alpha3d https://api.alpha3d.io/mcp   # Claude Code
+codex mcp add alpha3d --url https://api.alpha3d.io/mcp && codex mcp login alpha3d   # Codex
+```
+
+Cursor: add `"alpha3d": { "url": "https://api.alpha3d.io/mcp" }` under `mcpServers` in `.cursor/mcp.json` (the `--cursor` installer does this for you), then click **Authenticate** in Settings > MCP. Sign-in links your [alpha3d.io](https://alpha3d.io) account so generation draws from your credits.
+
+</details>
+
+<details>
+<summary><b>Tripo</b> (API key: <code>TRIPO_API_SECRET</code>)</summary>
+
+Get a `tsk_...` key from [platform.tripo3d.ai](https://platform.tripo3d.ai) (Settings > API keys), then:
+
+```bash
+# 1. install the skill and record tripo as the provider
+npx github:ig-shadow-walker/3DGenSkill --provider tripo      # add --cursor or --codex for those clients
+
+# 2. connect the Tripo MCP server (paste your key)
+claude mcp add tripo -e TRIPO_API_SECRET=tsk_YOUR_KEY -- npx -y tripo-ai-mcp-server        # Claude Code
+codex mcp add tripo --env TRIPO_API_SECRET=tsk_YOUR_KEY -- npx -y tripo-ai-mcp-server      # Codex
+```
+
+Cursor: add this under `mcpServers` in `.cursor/mcp.json`:
+
+```json
+"tripo": {
+  "command": "npx",
+  "args": ["-y", "tripo-ai-mcp-server"],
+  "env": { "TRIPO_API_SECRET": "tsk_YOUR_KEY" }
+}
+```
+
+Full tool contract and REST fallback: [`references/providers/tripo.md`](./skills/alpha-scene-gen/references/providers/tripo.md).
+
+</details>
+
+<details>
+<summary><b>Meshy</b> (API key: <code>MESHY_API_KEY</code>)</summary>
+
+Get a `msy_...` key from [meshy.ai](https://meshy.ai) (Settings > API keys), then:
+
+```bash
+# 1. install the skill and record meshy as the provider
+npx github:ig-shadow-walker/3DGenSkill --provider meshy      # add --cursor or --codex for those clients
+
+# 2. connect the Meshy MCP server (paste your key)
+claude mcp add meshy -e MESHY_API_KEY=msy_YOUR_KEY -- npx -y @meshy-ai/meshy-mcp-server     # Claude Code
+codex mcp add meshy --env MESHY_API_KEY=msy_YOUR_KEY -- npx -y @meshy-ai/meshy-mcp-server   # Codex
+```
+
+Cursor: add this under `mcpServers` in `.cursor/mcp.json`:
+
+```json
+"meshy": {
+  "command": "npx",
+  "args": ["-y", "@meshy-ai/meshy-mcp-server"],
+  "env": { "MESHY_API_KEY": "msy_YOUR_KEY" }
+}
+```
+
+Note: Meshy text-to-3D is two stages (preview, then a separate refine job that adds textures), so a textured text asset is two queue steps. Full tool contract: [`references/providers/meshy.md`](./skills/alpha-scene-gen/references/providers/meshy.md).
+
+</details>
 
 > [!NOTE]
 > Support tiers: Alpha3D is verified against a live connector. Tripo and Meshy are documented from their official/community MCP servers and REST APIs; their exact MCP tool parameters can vary by server version, so the skill confirms the connected tool list at runtime.

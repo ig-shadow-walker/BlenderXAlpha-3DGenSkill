@@ -50,14 +50,14 @@ const PROVIDERS = {
   tripo: {
     label: 'Tripo',
     cursorMcp: { command: 'npx', args: ['-y', 'tripo-ai-mcp-server'], env: { TRIPO_API_SECRET: 'tsk_YOUR_KEY' } },
-    claudeAdd: ['claude mcp add tripo -- npx -y tripo-ai-mcp-server', '# then set TRIPO_API_SECRET in its env (key: platform.tripo3d.ai)'],
+    claudeAdd: ['claude mcp add tripo -e TRIPO_API_SECRET=tsk_YOUR_KEY -- npx -y tripo-ai-mcp-server'],
     codexAdd: ['codex mcp add tripo --env TRIPO_API_SECRET=tsk_YOUR_KEY -- npx -y tripo-ai-mcp-server'],
     note: 'Get a Tripo key (tsk_...) at platform.tripo3d.ai. See references/providers/tripo.md.',
   },
   meshy: {
     label: 'Meshy',
     cursorMcp: { command: 'npx', args: ['-y', '@meshy-ai/meshy-mcp-server'], env: { MESHY_API_KEY: 'msy_YOUR_KEY' } },
-    claudeAdd: ['claude mcp add meshy -- npx -y @meshy-ai/meshy-mcp-server', '# then set MESHY_API_KEY in its env (key: meshy.ai)'],
+    claudeAdd: ['claude mcp add meshy -e MESHY_API_KEY=msy_YOUR_KEY -- npx -y @meshy-ai/meshy-mcp-server'],
     codexAdd: ['codex mcp add meshy --env MESHY_API_KEY=msy_YOUR_KEY -- npx -y @meshy-ai/meshy-mcp-server'],
     note: 'Get a Meshy key (msy_...) at meshy.ai. See references/providers/meshy.md.',
   },
