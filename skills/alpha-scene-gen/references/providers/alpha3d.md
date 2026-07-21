@@ -1,37 +1,59 @@
-# Alpha3D MCP tool reference
+# Provider adapter: Alpha3D (the default, fully verified)
 
-Verified directly against a live connector session. Tool names below are
-the short/logical names. Your actual tool list may show them with a
-connector-specific prefix (e.g. `mcp__<connector-id>__generate_3d`). If the
-plain name isn't already visible, search your available tools by the short
-name rather than assuming a fixed prefix; connector IDs are not stable
-across sessions or users.
+This is one of three provider adapters (see also `tripo.md`, `meshy.md`). The
+main `SKILL.md` workflow is provider-agnostic and refers to four primitives;
+this file maps them to Alpha3D's actual MCP tools:
 
-This is the full tool set. The three most useful facts that are easy to
-miss: `fetch` hands you download links for an asset the user *already*
-generated (so you can import from their library for free instead of
-regenerating), a `generate_image` result can be fed straight into
-`generate_3d` (concept image, then 3D), and `open_generator` is the escape
-hatch for anything you can't submit directly (a local image, multi-view).
+| Workflow primitive | Alpha3D tool |
+|---|---|
+| **generate** (text or image to 3D) | `generate_3d` |
+| **poll** (job status) | `get_job(job_id)` |
+| **download URL** (a GLB) | in the completed `get_job` result, or `fetch(id)` for an existing asset |
+| **balance / pricing** | `get_credit_balance` + `list_generation_options` (live per-op cost) |
+| **refine** | `retopologize`, `uv_unwrap`, `texture_3d`, `rig_3d`, `segment_3d`, `convert_format` |
+| **reuse from library** | `search`, `list_library`, then `fetch(id)` |
+
+Alpha3D is verified directly against a live connector session and is the
+richest of the three (library reuse, live pricing, concept-image-to-3D). The
+rest of this file is the full tool detail.
+
+Tool names below are the short/logical names. Your actual tool list may show
+them with a connector-specific prefix (e.g.
+`mcp__<connector-id>__generate_3d`). If the plain name isn't already visible,
+search your available tools by the short name rather than assuming a fixed
+prefix; connector IDs are not stable across sessions or users.
+
+The three most useful facts that are easy to miss: `fetch` hands you download
+links for an asset the user *already* generated (so you can import from their
+library for free instead of regenerating), a `generate_image` result can be
+fed straight into `generate_3d` (concept image, then 3D), and `open_generator`
+is the escape hatch for anything you can't submit directly (a local image,
+multi-view).
 
 ## Generation
 
 ### `generate_3d`
-Generates a 3D model from a text prompt, a single reference image URL, or
-2-3 multi-view images. Returns a `job_id` immediately. Poll `get_job` for
-the result.
+Generates a 3D model from a text prompt or a single reference image (URL or
+base64). Image mode removes the background first by default, matching the
+website. Returns a `job_id` immediately. Poll `get_job` for the result.
 
 | Argument | Type | Notes |
 |---|---|---|
 | `prompt` | string | Text mode. |
 | `image_url` | string (https URL) | Image mode. |
-| `multi_view_images` | array of `{view: "left"\|"right"\|"back", image_url}` | Multiview mode, max 3. |
-| `quality` | `"standard"` \| `"pbr"` \| `"low_poly"` | Default `pbr`. Cost varies by tier; get current pricing from `list_generation_options`. |
+| `image_base64` | string | Image mode when you have the bytes but no URL. |
+| `quality` | `"standard"` \| `"pbr"` \| `"low_poly"` | Mesh style. Default `pbr`. Cost varies by tier; get current pricing from `list_generation_options`. |
+| `geometry_only` | boolean | Output a bare mesh with no textures or PBR (cheaper); the user colours it later. Overrides the texturing implied by `quality`. |
+| `detail` | `"high"` \| `"ultra"` | Mesh density for standard/pbr/geometry. Default `high`. Ignored for `low_poly`. |
+| `polygon_type` | `"triangle"` \| `"quad"` | Low-poly topology only (`quality="low_poly"`). Default `triangle`. |
 | `face_count` | integer, 3,000-1,500,000 | Target polygon count. |
+| `remove_background` | boolean | Image mode only: strip the background before generating. Default `true`. |
 | `title` | string, max 100 chars | Name for the generated asset. |
 
-Exactly one of `prompt` / `image_url` / `multi_view_images` should be set
-per call.
+Set exactly one of `prompt` / `image_url` / `image_base64` per call. There is
+**no** multi-view parameter here: for multi-view-to-3D (several angles), a
+local image file with no URL, or the full settings UI, use `open_generator`
+instead (see below).
 
 ### `open_generator`
 Returns a link to the Alpha3D web generator for the signed-in user. This is

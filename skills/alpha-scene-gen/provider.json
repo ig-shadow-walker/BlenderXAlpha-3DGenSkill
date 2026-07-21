@@ -1,0 +1,4 @@
+{
+  "provider": "alpha3d",
+  "_comment": "Which 3D-generation provider this skill uses: alpha3d | tripo | meshy. Set at install time (npx installer --provider), or change it here anytime. The skill reads this at the start of every run and follows references/providers/<provider>.md."
+}

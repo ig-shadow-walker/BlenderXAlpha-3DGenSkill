@@ -321,5 +321,6 @@ def render_scene(path, resolution=768):
         bpy.data.cameras.remove(cam_data)
     return path
 
-result = render_scene("/tmp/alpha3d_scene_view.png")
+import os, tempfile
+result = render_scene(os.path.join(tempfile.gettempdir(), "alpha3d_scene_view.png"))
 ```

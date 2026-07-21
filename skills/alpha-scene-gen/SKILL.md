@@ -30,7 +30,7 @@ compatibility: >
 
 Turns a plain-language scene or asset description into real, AI-generated 3D
 models, placed and scaled correctly inside the user's currently open Blender
-file. You are the orchestrator: the Alpha3D MCP connector does the AI
+file. You are the orchestrator: your 3D provider's MCP connector does the AI
 generation, the Blender MCP connector does the placement, and you do the
 scene reasoning that ties them together, deciding what to generate, how big
 it should be, where it goes, and (by actually looking at the result) whether
@@ -38,8 +38,10 @@ it landed right.
 
 Three files carry the parts of this skill that are pure mechanism rather than
 judgment, so you don't have to re-derive them each time:
-- `references/mcp_tools.md`: verified tool contracts, and where live pricing
-  comes from, for every Alpha3D MCP tool this skill uses.
+- `references/providers/<provider>.md`: the adapter for your chosen 3D
+  provider (`alpha3d`, `tripo`, or `meshy`). Each maps that provider's MCP
+  tools to the workflow's primitives. Read the one that matches
+  `provider.json` (see "Which 3D provider" below).
 - `references/blender_helpers.md`: proven Python (download, sanitize,
   import, normalize, place, and render a view so you can see the scene) to
   adapt inside your `execute_blender_code` calls. The sanitize step in
@@ -48,6 +50,31 @@ judgment, so you don't have to re-derive them each time:
 - `references/troubleshooting.md`: what to do when a specific thing goes
   wrong (bridge disconnected, malformed GLB, job errored, insufficient
   credits).
+
+## Which 3D provider (read this first)
+
+This skill works with one configured 3D-generation provider. Before anything
+else, determine which one:
+
+- Read `provider.json` in this skill's own folder (next to this SKILL.md).
+  Its `provider` value is one of `alpha3d` (default), `tripo`, or `meshy`. If
+  the file is missing or unreadable, default to `alpha3d`; if that provider's
+  MCP is not connected but a different one is, tell the user which is
+  connected and ask which to use.
+- Read the matching adapter, `references/providers/<provider>.md`. Each maps
+  that provider's real MCP tools to the four primitives this workflow needs:
+  **generate** (text/image to a job), **poll** (job status), **download URL**
+  (a GLB), and **balance** (credits, if the provider exposes it), plus
+  refinement and reuse.
+
+Throughout this workflow the Alpha3D tool names (`generate_3d`, `get_job`,
+`fetch`, `get_credit_balance`, `list_generation_options`) appear as the
+running example, since Alpha3D is the default and most complete provider. If
+your configured provider is Tripo or Meshy, substitute the equivalent tool
+from its adapter table; the logic of every step is identical. The Blender
+half (download, sanitize, import, scale, ground, place, look) is the same for
+every provider. The user picked the provider at install time and can change
+it by editing `provider.json` or re-running the installer with `--provider`.
 
 ## Before anything else: confirm both connections are actually alive
 
@@ -58,8 +85,11 @@ does not survive Blender closing or its add-on server being stopped). Don't
 assume either is up just because the tools appear in your tool list. Verify
 with a cheap, free call to each:
 
-1. **Alpha3D MCP**: call `get_credit_balance`. A real balance response means
-   the connector is authenticated and live.
+1. **Your 3D provider's MCP**: make a cheap read call to confirm it is
+   connected and authenticated (Alpha3D `get_credit_balance`; Meshy
+   `meshy_check_balance`; Tripo has no balance tool, so just confirm its tools
+   are listed, or call `get_task_status` on a throwaway id). See your
+   provider's adapter.
 2. **Blender MCP bridge**: run a trivial `execute_blender_code` call, e.g.
    `result = {"blender_version": bpy.app.version_string}`. If this errors
    with a connection failure, the bridge server isn't running.
@@ -102,9 +132,12 @@ decide:
   drives cost, so make it deliberately:
   - **`reuse`** (free): if the user refers to something they already made
     ("my dragon from last week", "the crate I generated earlier", "use my
-    existing models"), find it with `search` or `list_library` and import
-    it via its `fetch` download link. This spends zero credits, so always
-    prefer it over regenerating an asset the user already owns.
+    existing models"), find it and import its download link instead of
+    regenerating. This spends zero credits, so always prefer it. How you find
+    it depends on the provider: Alpha3D `search`/`list_library` then `fetch`;
+    Meshy `meshy_list_tasks`; Tripo can only re-fetch by a task id you kept
+    (no library listing). If your provider can't list past work and you don't
+    have the id, you may have to regenerate.
   - **`generate`** (spends credits): reserve AI generation for objects where
     it earns its keep, like hero props, organic shapes, characters, anything
     with visual complexity or a specific look the user described.
@@ -144,17 +177,17 @@ decide:
   so treat facing as best-effort and call it out in your report so the user
   can spin any that end up backwards.
 
-Two other tools are worth reaching for while planning (both free), see
-`references/mcp_tools.md` for details:
+Two provider-dependent tricks are worth knowing while planning (see your
+provider's adapter for what it supports):
 - If the user dropped a **local image** into the chat, or wants
-  **multi-view-to-3D** (several angles of one object), you can't submit that
-  through `generate_3d` directly. Use `open_generator` to hand them a web
-  link, let them generate there, then pick the result up with `get_job` or
-  `list_library` and import it like any other asset.
-- `generate_image` is a quick way to lock a look before spending 3D credits:
-  generate a concept image, and if the user likes it, feed its hosted URL
-  into `generate_3d` image mode. Useful when a text prompt alone keeps
-  missing what they want.
+  **multi-view-to-3D** (several angles of one object), you may not be able to
+  submit it directly. Alpha3D has `open_generator` (hands them a web link);
+  Tripo's community server has `multiview_to_3d` / `upload_file`; otherwise
+  ask the user for image URLs. Then pick the result up with the provider's
+  poll/list tools and import it like any other asset.
+- A **concept image first** can lock a look before spending 3D credits: with
+  Alpha3D, `generate_image` (free) makes one you can feed into image mode.
+  Check your adapter for whether your provider offers an equivalent.
 
 ## Step 2: Show the plan, then STOP for explicit confirmation
 
@@ -166,13 +199,16 @@ misunderstood prompt, an unnecessarily high quality tier, or a postprocess
 step the user didn't actually want is real spent money, not something an
 undo button fixes.
 
-Call `get_credit_balance` for the balance and `list_generation_options` for
-the live per-operation pricing (never hardcode credit amounts; the tool is
-the source of truth and pricing can change). Then show the user a plan
-table: asset name, source, quality, credits, any postprocess + its credits,
-subtotal, followed by the grand total and the balance remaining after.
-Reuse, primitive, and skip rows are free; only `generate` and postprocess
-rows cost credits.
+Get the balance and pricing from your provider (never hardcode credit
+amounts; the provider is the source of truth and pricing can change).
+Alpha3D: `get_credit_balance` + `list_generation_options` (live per-op cost).
+Meshy: `meshy_check_balance` (per-op cost varies, so estimate from its
+pricing). Tripo: no MCP balance tool, so you cannot show a live number; say
+so, point the user at their Tripo console, and still show the plan and
+confirm. Then show the user a plan table: asset name, source, quality,
+credits (if known), any postprocess + its credits, subtotal, the grand
+total, and the balance remaining after. Reuse, primitive, and skip rows are
+free; only `generate` and postprocess rows cost credits.
 
 If any credits will be spent, wait for an explicit go-ahead in the
 conversation before calling `generate_3d` (or any other credit-spending
@@ -289,13 +325,15 @@ scene done.
 
 ## If a run gets interrupted after generating
 
-A job that reached `completed` is already paid for and stored in the user's
-Alpha3D library. If the run breaks after that (the Blender bridge drops, the
+A job that reached `completed` is already paid for and stored on the
+provider's side. If the run breaks after that (the Blender bridge drops, the
 conversation resets) before you placed the asset, do NOT regenerate it, that
 charges the user a second time for a model they already own. Recover it
-instead: `search` or `list_library` by the `title` you set in Step 3, then
-`fetch` its download link and import (Step 4). This is exactly the `reuse`
-path from Step 1, and it is why every generation gets a clear, unique title.
+instead via your provider's reuse path (Alpha3D: `search`/`list_library` by
+the `title` you set, then `fetch`; Meshy: `meshy_list_tasks`; Tripo: the task
+id you recorded) and import (Step 4). This is the same `reuse` path from
+Step 1, and it is why every generation gets a clear, unique title and why you
+keep each `job_id`.
 
 ## If something goes wrong mid-run
 

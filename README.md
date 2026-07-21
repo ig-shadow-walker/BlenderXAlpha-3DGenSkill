@@ -4,7 +4,7 @@
 
 **Describe a scene in plain English. Your AI agent generates the 3D models with Alpha3D and builds it in your open Blender file, scaled, grounded, and placed.**
 
-An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) for [Claude Code](https://claude.com/claude-code), also usable in Cursor and OpenAI Codex, that connects [Alpha3D](https://alpha3d.io) AI 3D generation to a running Blender session.
+An [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) for [Claude Code](https://claude.com/claude-code), also usable in Cursor and OpenAI Codex, that connects an AI 3D provider ([Alpha3D](https://alpha3d.io) by default, or Tripo or Meshy) to a running Blender session.
 
 <!-- Badges: replace OWNER/REPO once topics + license are set on GitHub -->
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
@@ -43,6 +43,7 @@ Your agent breaks that into individual assets, shows you exactly what each one c
 - [How it works](#how-it-works)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation) (Claude Code, Cursor, Codex)
+- [Choosing your 3D provider](#choosing-your-3d-provider) (Alpha3D, Tripo, Meshy)
 - [Usage](#usage)
 - [Cost](#cost)
 - [Repo layout](#repo-layout)
@@ -76,6 +77,7 @@ You stay in the loop: it always plans and prices the work first, and never spend
 | **Refinement passes** | Optional auto-rig, retopology, UV unwrap, re-texture, or part segmentation, triggered from your words ("rig it so I can pose it"). |
 | **Concept image to 3D, for free** | Generate a concept image with FLUX first; once you like it, turn that exact image into a model. |
 | **Cost-safe by design** | Generates one asset at a time and stops cleanly the moment you run out of credits, never mid-committing a batch it can't finish. Shows a per-asset cost table and waits for confirmation; failed jobs auto-refund; an interrupted run recovers already-paid assets from your library instead of charging twice. |
+| **Provider choice** | Generate through Alpha3D (default), or switch to Tripo or Meshy. All return GLB, so the Blender half is identical; you pick at install and can change it anytime. |
 | **Fails loudly, not silently** | If Blender is not connected or a model comes back malformed, it tells you what is wrong and how to fix it, rather than producing a cryptic error. |
 
 > [!TIP]
@@ -88,13 +90,13 @@ This skill is pure orchestration. It plugs two MCP connectors together and does 
 ```mermaid
 flowchart LR
     U[You describe a scene] --> C[Your coding agent + this skill]
-    C -->|generate_3d, get_job| A[Alpha3D MCP<br/>AI 3D generation]
+    C -->|generate, poll| A[3D provider MCP<br/>Alpha3D / Tripo / Meshy]
     A -->|GLB download links| C
     C -->|execute_blender_code| B[Blender MCP bridge<br/>runs bpy in your Blender]
     B --> S[Your live Blender scene]
 ```
 
-1. **[Alpha3D MCP](https://alpha3d.io)** generates the actual 3D models and handles optional refinement (rigging, retopo, UV, texturing, segmentation).
+1. **Your chosen 3D provider's MCP** ([Alpha3D](https://alpha3d.io) by default, or Tripo or Meshy) generates the actual 3D models and handles optional refinement (rigging, retopo, UV, texturing, segmentation).
 2. **A Blender MCP bridge** (a Blender add-on that exposes a local `bpy` code-execution tool over MCP) lets the agent import and place assets inside your running Blender instance.
 
 Your agent sequences both: it plans the scene, prices it, and after you confirm, downloads each model to local disk, sanitizes it for Blender's strict glTF loader, and imports it, arranging assets as each one finishes. It can also see the viewport (via a screenshot or a quick render) to understand an existing scene and to check its own work. See [`SKILL.md`](./skills/alpha-scene-gen/SKILL.md) for the full step-by-step procedure.
@@ -122,7 +124,7 @@ On your go-ahead it generates them one at a time, checking your balance before e
 | Requirement | Why | Notes |
 |---|---|---|
 | An **MCP capable coding agent** that runs on your machine: **Claude Code**, **Cursor**, or **OpenAI Codex CLI** | Runs the workflow and reaches Blender on your machine | Per-client setup is below. |
-| **An Alpha3D account with credits** + the **Alpha3D MCP connector** | Does the AI 3D generation | Generation spends real credits. Get an account at [alpha3d.io](https://alpha3d.io). |
+| **An account + MCP connector for your 3D provider** (Alpha3D by default; or Tripo / Meshy) | Does the AI 3D generation | Generation spends real credits. Alpha3D account at [alpha3d.io](https://alpha3d.io); see [Choosing your 3D provider](#choosing-your-3d-provider) for Tripo/Meshy. |
 | **Blender 4.x or 5.x**, open, with a **Blender MCP bridge** add-on running | Lets the agent run `bpy` in your session | Any bridge exposing a `bpy` code-execution MCP tool works. The common one is [BlenderMCP](https://github.com/ahujasid/blender-mcp). |
 
 > [!NOTE]
@@ -132,7 +134,7 @@ On your go-ahead it generates them one at a time, checking your balance before e
 
 The skill has two parts, and setup depends on your client:
 
-1. **Two MCP connectors.** **Alpha3D** (remote, at `https://api.alpha3d.io/mcp`, with a browser OAuth step on first use) and a **Blender bridge** (a local stdio server, e.g. `uvx blender-mcp`).
+1. **Two MCP connectors.** Your **3D provider** (Alpha3D by default, at `https://api.alpha3d.io/mcp` with browser sign-in; or Tripo/Meshy, see [Choosing your 3D provider](#choosing-your-3d-provider)) and a **Blender bridge** (a local stdio server, e.g. `uvx blender-mcp`).
 2. **The skill's instructions.** The `skills/alpha-scene-gen/` folder (`SKILL.md` plus `references/`). Claude Code loads these automatically as a skill or plugin. Cursor and Codex have no Agent Skills system, so the same two MCP servers get connected and the tool is pointed at these instructions through its own rules file or `AGENTS.md`. The `npx` installer below sets all of that up for you per client, so each one is a single command.
 
 **The Blender side is identical for every client:** install a bridge add-on such as [BlenderMCP](https://github.com/ahujasid/blender-mcp) in Blender, and **start its server** (a button in the add-on's panel) each session. The per-client config below only tells your agent how to launch or reach that bridge, plus the remote Alpha3D server. You also need an [alpha3d.io](https://alpha3d.io) account with credits.
@@ -146,7 +148,7 @@ The skill has two parts, and setup depends on your client:
 npx github:ig-shadow-walker/3DGenSkill
 ```
 
-By default it installs to `~/.claude/skills/alpha-scene-gen/` (available in every project). Add `--project` to install into the current repo's `.claude/skills/` instead, or `--dir <path>` to target any folder. The installer is dependency-free and prints exactly what it copied. Claude Code discovers the skill from its `SKILL.md`; no restart needed.
+By default it installs to `~/.claude/skills/alpha-scene-gen/` (available in every project). Add `--project` to install into the current repo's `.claude/skills/` instead, or `--dir <path>` to target any folder. Add `--provider tripo` or `--provider meshy` to generate through those instead of Alpha3D (see [Choosing your 3D provider](#choosing-your-3d-provider)). The installer is dependency-free and prints exactly what it copied. Claude Code discovers the skill from its `SKILL.md`; no restart needed.
 
 <details>
 <summary>Prefer not to use npx? Two other ways</summary>
@@ -263,6 +265,31 @@ assets, follow the workflow in `skills/alpha-scene-gen/SKILL.md` and its
 
 Open Blender on a scene and start the bridge server, then describe a small scene to your agent. The skill runs a free preflight check on both connectors before proposing anything, so if a connection is missing it tells you immediately instead of failing deep into a build.
 
+## Choosing your 3D provider
+
+The skill generates through one configured provider. **Alpha3D** is the default and the most fully supported (library reuse, live pricing, concept-image-to-3D). You can use **Tripo** or **Meshy** instead. All three return GLB, so the Blender import/place half is identical; only the generate step differs.
+
+Pick it at install time with `--provider`:
+
+```bash
+npx github:ig-shadow-walker/3DGenSkill --provider meshy      # or tripo, or alpha3d
+```
+
+To change later, edit `provider` in `skills/alpha-scene-gen/provider.json` (wherever the skill was installed) and connect that provider's MCP. The skill reads this file at the start of every run.
+
+Each provider needs its MCP server connected. Alpha3D uses browser sign-in (no key); Tripo and Meshy use an API key:
+
+| Provider | Connect (Claude Code) | Auth |
+|---|---|---|
+| **Alpha3D** | `claude mcp add --transport http alpha3d https://api.alpha3d.io/mcp` | browser sign-in |
+| **Tripo** | `claude mcp add tripo -- npx -y tripo-ai-mcp-server` | `TRIPO_API_SECRET` (key from platform.tripo3d.ai) |
+| **Meshy** | `claude mcp add meshy -- npx -y @meshy-ai/meshy-mcp-server` | `MESHY_API_KEY` (key from meshy.ai) |
+
+For Cursor/Codex connection commands and the exact per-provider tool contracts, see the adapter docs in [`skills/alpha-scene-gen/references/providers/`](./skills/alpha-scene-gen/references/providers/).
+
+> [!NOTE]
+> Support tiers: Alpha3D is verified against a live connector. Tripo and Meshy are documented from their official/community MCP servers and REST APIs; their exact MCP tool parameters can vary by server version, so the skill confirms the connected tool list at runtime.
+
 ## Usage
 
 Just describe what you want in your open Blender scene:
@@ -297,8 +324,12 @@ The same credit pricing as the Alpha3D platform applies. For current rates, see 
 ├── skills/
 │   └── alpha-scene-gen/
 │       ├── SKILL.md             # The skill: the full procedure the agent follows
+│       ├── provider.json        # Which 3D provider to use (alpha3d | tripo | meshy)
 │       └── references/
-│           ├── mcp_tools.md         # Verified Alpha3D MCP tool contracts + cost table
+│           ├── providers/
+│           │   ├── alpha3d.md       # Alpha3D adapter: MCP tool contracts + cost table (default)
+│           │   ├── tripo.md         # Tripo adapter: MCP tools + REST contract
+│           │   └── meshy.md         # Meshy adapter: MCP tools + REST contract
 │           ├── blender_helpers.md   # Proven bpy code: download, sanitize, import, place, duplicate
 │           └── troubleshooting.md   # Known failure modes and their fixes
 ├── evals/
